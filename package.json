@@ -1,0 +1,47 @@
+{
+  "name": "@kwespay/widget",
+  "type": "module",
+  "version": "1.0.7",
+  "description": "KwesPay Crypto Payment Widget - Accept crypto payments in 3 lines of code",
+  "main": "dist/kwespay-widget.min.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "crypto",
+    "payment",
+    "widget",
+    "ethereum",
+    "polygon",
+    "blockchain",
+    "web3"
+  ],
+  "author": "KwesPay",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kwespay/widget"
+  },
+  "dependencies": {
+    "@kwespay/client": "^0.1.10",
+    "@walletconnect/ethereum-provider": "^2.17.0",
+    "ethers": "^6.13.4",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.60.1",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-postcss": "^4.0.2"
+  }
+}
