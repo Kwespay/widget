@@ -148,12 +148,6 @@ window.addEventListener("kwespay:apiKeyValidated", (e) => {
 
 ---
 
-## Fee Model
-
-KwesPay uses a **customer-pays-fee** architecture. The fee is calculated by the backend and signed into the payment payload — the merchant always receives the exact `amount` specified. Fee details are shown to the customer before they confirm the transaction.
-
----
-
 ## License
 
 MIT © KwesPay
