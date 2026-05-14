@@ -2,36 +2,36 @@ class PaymentService {
   constructor(apiKey, graphqlEndpoint) {
     this.apiKey = apiKey;
     this.graphqlEndpoint = graphqlEndpoint;
+    this._graphqlEndpoint = graphqlEndpoint;
+    this._apiKey = apiKey;
     this.client = null;
-
-    console.log("[KwesPay] PaymentService initialized", {
-      apiKey: this.apiKey?.slice(0, 6) + "...",
-    });
   }
 
   async _initClient() {
     if (this.client) return;
-
-    console.log("[KwesPay] Initializing SDK client...");
-
     const { KwesPayClient } = await import("@kwespay/client");
-
     this.client = new KwesPayClient({ apiKey: this.apiKey });
+  }
 
-    console.log("[KwesPay] SDK client ready");
+  async _rawGql(query, variables) {
+    const res = await fetch(this._graphqlEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": this._apiKey,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    return res.json();
   }
 
   async validateAPIKey() {
     try {
       await this._initClient();
-
       const result = await this.client.validateKey();
-
       if (!result.isValid) {
-        console.error("[KwesPay] Invalid API key:", result.error);
         return { valid: false, error: result.error ?? "Invalid access key" };
       }
-
       return {
         valid: true,
         keyId: result.keyId,
@@ -48,94 +48,94 @@ class PaymentService {
 
   async getQuote(params) {
     await this._initClient();
-
-    console.log("[KwesPay] Requesting quote...", params);
-
-    const quote = await this.client.quote({
-      vendorIdentifier: params.vendorId,
+    return this.client.getQuote({
+      vendorIdentifier: params.vendorIdentifier,
       fiatAmount: params.fiatAmount,
       fiatCurrency: params.fiatCurrency || "USD",
       cryptoCurrency: params.cryptoCurrency,
       network: params.network,
-      payerWalletAddress: params.payerWalletAddress,
     });
-
-    console.log("[KwesPay] Quote received:", quote);
-
-    return quote;
   }
 
   async createPayment({ payload, walletProvider, onStatusUpdate }) {
     await this._initClient();
 
-    console.log("[KwesPay] 💳 createPayment called", {
-      payloadKeys: payload ? Object.keys(payload) : null,
-      amountBaseUnits: payload?.amountBaseUnits,
-      contractAddress: payload?.contractAddress,
-      paymentId: payload?.paymentId,
-      vendorAddress: payload?.vendorAddress,
-      expiresAt: payload?.expiresAt,
-      providerType: walletProvider?.constructor?.name,
+    const accounts = await walletProvider.request({ method: "eth_accounts" });
+    const payerWalletAddress = accounts[0];
+
+    // Call createTransaction directly so we can request the deadline field,
+    // which the SDK's GQL_CREATE_TRANSACTION query does not yet include.
+    const rawTx = await this._rawGql(
+      `mutation CreateTransaction($input: CreateTransactionInput!) {
+        createTransaction(input: $input) {
+          success
+          message
+          paymentIdBytes32
+          backendSignature
+          tokenAddress
+          amountBaseUnits
+          chainId
+          deadline
+          expiresAt
+          transaction {
+            transactionReference
+            transactionStatus
+          }
+        }
+      }`,
+      { input: { quoteId: payload.quoteId, payerWalletAddress } }
+    );
+
+    const ct = rawTx?.data?.createTransaction;
+
+    if (!ct?.success) {
+      throw new Error(ct?.message ?? "Transaction creation failed");
+    }
+
+    if (!ct.deadline) {
+      throw new Error("Backend did not return a deadline");
+    }
+
+    // Compute totalBaseUnits locally — mirrors the contract formula:
+    // fee = (amount * 50) / 10000,  total = amount + fee
+    const PLATFORM_FEE_BPS = 50n;
+    const amountBig = BigInt(ct.amountBaseUnits);
+    const feeBig = (amountBig * PLATFORM_FEE_BPS) / 10000n;
+    const totalBig = amountBig + feeBig;
+
+    // Build the complete TransactionPayload the SDK's pay() expects.
+    const txPayload = {
+      paymentIdBytes32: ct.paymentIdBytes32,
+      backendSignature: ct.backendSignature,
+      tokenAddress: ct.tokenAddress,
+      amountBaseUnits: ct.amountBaseUnits,
+      totalBaseUnits: totalBig.toString(),
+      chainId: ct.chainId,
+      deadline: ct.deadline,
+      expiresAt: ct.expiresAt,
+      transactionReference: ct.transaction.transactionReference,
+      transactionStatus: ct.transaction.transactionStatus,
+      network: payload.network,
+      vendorIdentifier: payload.vendorIdentifier,
+    };
+
+    const result = await this.client.pay({
+      provider: walletProvider,
+      payload: txPayload,
+      onStatus: (title, detail) => onStatusUpdate?.(title, detail),
     });
 
-    try {
-      const result = await this.client.pay({
-        provider: walletProvider,
-        payload,
-        onStatus: (status) => {
-          console.log("[KwesPay] 📋 Payment status update:", status);
-          onStatusUpdate?.(status);
-        },
-      });
-
-      console.log("[KwesPay] ✅ Payment completed:", result);
-
-      return {
-        hash: result.txHash,
-        blockNumber: result.blockNumber,
-        transactionReference: result.transactionReference,
-        paymentIdBytes32: result.paymentIdBytes32,
-      };
-    } catch (err) {
-      console.error("[KwesPay] ❌ createPayment error:", {
-        message: err?.message,
-        code: err?.code,
-        reason: err?.reason,
-        data: err?.data,
-        transaction: err?.transaction
-          ? {
-              to: err.transaction?.to,
-              from: err.transaction?.from,
-              value: err.transaction?.value?.toString(),
-              gasLimit: err.transaction?.gasLimit?.toString(),
-              data: err.transaction?.data,
-            }
-          : undefined,
-        receipt: err?.receipt
-          ? {
-              status: err.receipt?.status,
-              gasUsed: err.receipt?.gasUsed?.toString(),
-              blockNumber: err.receipt?.blockNumber,
-              transactionHash: err.receipt?.transactionHash,
-            }
-          : undefined,
-        stack: err?.stack,
-        raw: err,
-      });
-      throw err;
-    }
+    return {
+      hash: result.txHash,
+      blockNumber: result.blockNumber,
+      transactionReference: result.transactionReference,
+      paymentIdBytes32: result.paymentIdBytes32,
+    };
   }
 
   async getTransactionStatus(transactionReference) {
     await this._initClient();
-
-    console.log("[KwesPay] Fetching transaction status:", transactionReference);
-
-    const status = await this.client.getTransactionStatus(transactionReference);
-
-    console.log("[KwesPay] Transaction status:", status);
-
-    return status;
+    return this.client.getTransactionStatus(transactionReference);
   }
 
   async pollTransactionStatus(
@@ -143,28 +143,13 @@ class PaymentService {
     { onStatus, intervalMs = 4000, maxAttempts = 60 } = {}
   ) {
     await this._initClient();
-
-    console.log("[KwesPay] Starting polling...", {
-      transactionReference,
-      intervalMs,
-    });
-
     let attempts = 0;
-
     return new Promise((resolve, reject) => {
       const id = setInterval(async () => {
         attempts++;
-
         try {
           const status = await this.getTransactionStatus(transactionReference);
-
-          console.log(
-            `[KwesPay] Poll attempt ${attempts}:`,
-            status.transactionStatus
-          );
-
           onStatus?.(status.transactionStatus);
-
           const terminal = [
             "completed",
             "failed",
@@ -173,22 +158,14 @@ class PaymentService {
             "overpaid",
             "refunded",
           ];
-
           if (terminal.includes(status.transactionStatus)) {
-            console.log(
-              "[KwesPay] Final status reached:",
-              status.transactionStatus
-            );
             clearInterval(id);
             resolve(status);
           } else if (attempts >= maxAttempts) {
-            console.error("[KwesPay] Polling timeout");
             clearInterval(id);
             reject(new Error("Transaction status polling timed out."));
           }
         } catch (err) {
-          console.error("[KwesPay] Polling error:", err);
-
           if (attempts >= maxAttempts) {
             clearInterval(id);
             reject(err);

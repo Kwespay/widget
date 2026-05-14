@@ -23,7 +23,7 @@ export const WalletMethods = {
           <button class="kp-back-btn" id="kwespay-picker-back">
             <span class="material-symbols-outlined">arrow_back</span>
           </button>
-          <div class="kp-topbar-dot"></div>
+      
           <span class="kp-topbar-name">Connect Wallet</span>
         </div>
       </div>
@@ -193,7 +193,7 @@ export const WalletMethods = {
           <button class="kp-back-btn" id="kwespay-wc-back">
             <span class="material-symbols-outlined">arrow_back</span>
           </button>
-          <div class="kp-topbar-dot"></div>
+      
           <span class="kp-topbar-name">Scan QR Code</span>
         </div>
       </div>
@@ -233,7 +233,7 @@ export const WalletMethods = {
           <button class="kp-back-btn" id="kwespay-wc-back">
             <span class="material-symbols-outlined">arrow_back</span>
           </button>
-          <div class="kp-topbar-dot"></div>
+      
           <span class="kp-topbar-name">Connect Wallet</span>
         </div>
       </div>

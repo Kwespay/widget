@@ -29,23 +29,13 @@ export const NetworkMethods = {
       const listItem = document.createElement("div");
       listItem.className = "list-item";
       listItem.innerHTML = `
-        <div class="item-icon"><img src="${network.logo}" alt="${
-        network.name
-      }" /></div>
+        <div class="item-icon"><img src="${network.logo}" alt="${network.name}" /></div>
         <div class="item-info">
           <div class="item-name-row">
             <p class="item-name">${network.name}</p>
-            ${
-              network.type === "testnet"
-                ? '<span class="item-badge badge-testnet">Testnet</span>'
-                : ""
-            }
+            
           </div>
-          <p class="item-desc">${
-            network.type === "mainnet"
-              ? "Mainnet · Production"
-              : "Testnet · Development"
-          }</p>
+       
         </div>
         <span class="material-symbols-outlined item-chevron">chevron_right</span>
       `;

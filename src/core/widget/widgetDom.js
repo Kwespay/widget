@@ -39,27 +39,29 @@ export const DomMethods = {
     overlay.className = "kwespay-overlay";
     overlay.id = "kwespay-widget-overlay";
 
+    const container = document.createElement("div");
+    container.className = "kwespay-container";
+    container.id = "kwespay-widget-container";
+
     const closeBtn = document.createElement("button");
     closeBtn.className = "kwespay-close-btn";
     closeBtn.innerHTML = "×";
     closeBtn.onclick = () => this.close();
-    overlay.appendChild(closeBtn);
+    container.appendChild(closeBtn);
 
-    const container = document.createElement("div");
-    container.className = "kwespay-container";
-    container.id = "kwespay-widget-container";
-    container.innerHTML = getStepTemplates(
+    const stepsWrapper = document.createElement("div");
+    stepsWrapper.className = "kwespay-steps-wrapper";
+    stepsWrapper.innerHTML = getStepTemplates(
       this.config.amount,
       this.config.currency
     );
+    container.appendChild(stepsWrapper);
 
     overlay.appendChild(container);
     document.body.appendChild(overlay);
 
     this._setupEventListeners();
     this._setupSwipeToClose(container);
-
-    // Clicking outside the container does NOT close the widget (intentional)
   },
 
   _setupSwipeToClose(container) {

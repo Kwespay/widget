@@ -3,10 +3,8 @@ export function getStepTemplates(fiatAmount, currency) {
     <div class="step active" id="kwespay-step0">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
-          <div class="kp-topbar-dot"></div>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
-        
       </div>
       <div class="loading-container" style="flex:1">
         <div class="spinner-wrapper">
@@ -28,7 +26,6 @@ export function getStepTemplates(fiatAmount, currency) {
     <div class="step" id="kwespay-step0-invalid">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
-          <div class="kp-topbar-dot" style="background:var(--kp-red);box-shadow:none;animation:none"></div>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
       </div>
@@ -47,10 +44,8 @@ export function getStepTemplates(fiatAmount, currency) {
     <div class="step" id="kwespay-step1">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
-          <div class="kp-topbar-dot"></div>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
-       
       </div>
       <div class="kp-amount-block">
         <div class="kp-amount-label">Total due</div>
@@ -84,15 +79,12 @@ export function getStepTemplates(fiatAmount, currency) {
           <button class="kp-back-btn" id="kwespay-back2">
             <span class="material-symbols-outlined">arrow_back</span>
           </button>
-          <div class="kp-topbar-dot"></div>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
-       
       </div>
       <div class="kp-amount-block">
         <div class="kp-amount-label">Total due</div>
         <div class="kp-amount-value">${fiatAmount} ${currency}</div>
-        <div class="kp-amount-hint">Select a token — exact amount shown at review</div>
       </div>
       <div class="progress-section">
         <div class="progress-info">
@@ -127,10 +119,8 @@ export function getStepTemplates(fiatAmount, currency) {
           <button class="kp-back-btn" id="kwespay-back3">
             <span class="material-symbols-outlined">arrow_back</span>
           </button>
-          <div class="kp-topbar-dot"></div>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
-        
       </div>
       <div class="progress-section">
         <div class="progress-info">
@@ -155,15 +145,15 @@ export function getStepTemplates(fiatAmount, currency) {
 
         <div class="kp-detail-block">
           <div class="kp-detail-row">
-            <span class="kp-detail-key">wallet</span>
+            <span class="kp-detail-key">Wallet</span>
             <span class="kp-detail-val" id="kwespay-connectedWalletAddress">—</span>
           </div>
           <div class="kp-detail-row">
-            <span class="kp-detail-key">network</span>
+            <span class="kp-detail-key">Network</span>
             <span class="kp-detail-val" id="kwespay-summaryNetwork">—</span>
           </div>
           <div class="kp-detail-row">
-            <span class="kp-detail-key">token</span>
+            <span class="kp-detail-key">Token</span>
             <span class="kp-detail-val accent" id="kwespay-summaryToken">—</span>
           </div>
         </div>
@@ -174,15 +164,15 @@ export function getStepTemplates(fiatAmount, currency) {
             <span class="kp-fee-header-text">Fee Breakdown</span>
           </div>
           <div class="kp-detail-row">
-            <span class="kp-detail-key">payment amount</span>
+            <span class="kp-detail-key">Payment amount</span>
             <span class="kp-detail-val" id="kwespay-feePaymentAmount">—</span>
           </div>
           <div class="kp-detail-row">
-            <span class="kp-detail-key">platform fee (0.25%)</span>
+            <span class="kp-detail-key">Platform fee (0.25%)</span>
             <span class="kp-detail-val" id="kwespay-feePlatformFee">—</span>
           </div>
           <div class="kp-detail-row">
-            <span class="kp-detail-key">vendor receives</span>
+            <span class="kp-detail-key">Vendor receives</span>
             <span class="kp-detail-val green" id="kwespay-feeVendorAmount">—</span>
           </div>
         </div>
@@ -193,14 +183,17 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
+    <!-- Step 4: Processing / Confirming / Success — all in one step, mutating in place -->
     <div class="step" id="kwespay-step4">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
-          <div class="kp-topbar-dot"></div>
-          <span class="kp-topbar-name">KwesPay Checkout</span>
+          <span class="kp-topbar-name" id="kwespay-step4-title">KwesPay Checkout</span>
         </div>
+       
       </div>
-      <div class="loading-container" style="flex:1">
+
+      <!-- Sub-view: processing (wallet approval) -->
+      <div id="kwespay-view-processing" class="loading-container" style="flex:1">
         <div class="spinner-wrapper">
           <div class="spinner-ring"></div>
           <div class="spinner-ring-2"></div>
@@ -218,59 +211,72 @@ export function getStepTemplates(fiatAmount, currency) {
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="step" id="kwespay-step5">
-      <div class="kp-topbar">
-        <div class="kp-topbar-brand">
-          <div class="kp-topbar-dot" style="background:var(--kp-green);box-shadow:0 0 8px rgba(16,185,129,0.4);animation:none"></div>
-          <span class="kp-topbar-name">Payment Complete</span>
+      <!-- Sub-view: confirming (on-chain done, polling backend) -->
+      <div id="kwespay-view-confirming" class="loading-container" style="flex:1;display:none">
+        <div class="spinner-wrapper">
+          <div class="spinner-ring kp-spin-soft"></div>
+          <div class="spinner-ring-2 kp-spin-soft"></div>
+          <div class="spinner-icon kp-spinner-icon-green">
+            <span class="material-symbols-outlined" style="color:var(--kp-green)">cloud_sync</span>
+          </div>
         </div>
-        <div class="kp-topbar-secure">
-          <span class="material-symbols-outlined" style="color:var(--kp-green)">check_circle</span>
-          CONFIRMED
+        <h2 class="headline">Confirming Payment</h2>
+        <p class="body-text" id="kwespay-confirmingText">Waiting for network confirmation.</p>
+        <div class="kp-onchain-badge">
+          <span class="material-symbols-outlined">check</span>
+          Transaction sent on-chain
         </div>
       </div>
-      <div class="loading-container" style="flex:1">
-        <div class="success-icon">
-          <span class="material-symbols-outlined">check_circle</span>
+
+      <!-- Sub-view: success (backend confirmed) -->
+      <div id="kwespay-view-success" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+        <div class="kp-confirmed-bar">
+          <span class="material-symbols-outlined" style="font-size:13px;color:var(--kp-green)">check_circle</span>
+          <span>Payment confirmed on-chain</span>
         </div>
-        <h2 class="headline">Payment Successful</h2>
-        <p class="body-text">Your transaction has been confirmed on-chain.</p>
-        <div class="tx-details">
-          <div class="tx-row">
-            <span class="tx-label">tx hash</span>
-            <div class="tx-hash-row">
-              <span class="tx-value" id="kwespay-txHash">—</span>
-              <a class="explorer-link" id="kwespay-explorerLink" target="_blank" rel="noopener noreferrer">
-                <span class="material-symbols-outlined">open_in_new</span>
-              </a>
+        <div class="loading-container" style="flex:1;padding-bottom:0;justify-content:flex-start;padding-top:20px;overflow-y:auto">
+          <div class="success-icon">
+            <span class="material-symbols-outlined">check_circle</span>
+          </div>
+          <h2 class="headline">Payment Successful</h2>
+          <p class="body-text">Your transaction has been confirmed on-chain.</p>
+          <div class="tx-details">
+            <div class="tx-row">
+              <span class="tx-label">Tx hash</span>
+              <div class="tx-hash-row">
+                <span class="tx-value" id="kwespay-txHash">—</span>
+                <a class="explorer-link" id="kwespay-explorerLink" target="_blank" rel="noopener noreferrer">
+                  <span class="material-symbols-outlined">open_in_new</span>
+                </a>
+              </div>
+            </div>
+            <div class="tx-row">
+              <span class="tx-label">Amount paid</span>
+              <span class="tx-value" id="kwespay-txFiatAmount">${fiatAmount} ${currency}</span>
+            </div>
+            <div class="tx-row">
+              <span class="tx-label">Crypto amount</span>
+              <span class="tx-value" id="kwespay-txCryptoAmount">—</span>
+            </div>
+            <div class="tx-row">
+              <span class="tx-label">Network</span>
+              <span class="tx-value" id="kwespay-txNetwork">—</span>
             </div>
           </div>
-          <div class="tx-row">
-            <span class="tx-label">amount paid</span>
-            <span class="tx-value" id="kwespay-txFiatAmount">${fiatAmount} ${currency}</span>
-          </div>
-          <div class="tx-row">
-            <span class="tx-label">crypto amount</span>
-            <span class="tx-value" id="kwespay-txCryptoAmount">—</span>
-          </div>
-          <div class="tx-row">
-            <span class="tx-label">network</span>
-            <span class="tx-value" id="kwespay-txNetwork">—</span>
-          </div>
         </div>
-      </div>
-      <div class="bottom-action">
-        <button class="action-btn" id="kwespay-closeSuccessBtn">Done</button>
-      </div>
-      <div class="kp-footer">
-        <span class="material-symbols-outlined kp-footer-lock" style="font-size:12px">lock</span>
-        <span class="kp-footer-text">Secured by <span>KwesPay</span> &middot; On-chain verified</span>
+        <div class="bottom-action">
+          <button class="action-btn" id="kwespay-closeSuccessBtn">Done</button>
+        </div>
+        <div class="kp-footer">
+          <span class="material-symbols-outlined kp-footer-lock" style="font-size:12px">lock</span>
+          <span class="kp-footer-text">Secured by <span>KwesPay</span> &middot; On-chain verified</span>
+        </div>
       </div>
     </div>
 
-    <div class="step" id="kwespay-step6">
+    <!-- Error step (was step6, renumbered step5 internally) -->
+    <div class="step" id="kwespay-step5">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
           <div class="kp-topbar-dot" style="background:var(--kp-red);box-shadow:none;animation:none"></div>

@@ -38,6 +38,11 @@ class KwesPayWidget {
       currency: config.currency || DEFAULT_CONFIG.currency,
       graphqlEndpoint: DEFAULT_CONFIG.graphqlEndpoint,
       acceptedTokens: resolveAcceptedTokens(config.acceptedTokens),
+      // Legacy constructor callbacks — still supported for backward compat
+      onPaymentSuccess: config.onPaymentSuccess ?? null,
+      onPaymentConfirmed: config.onPaymentConfirmed ?? null,
+      onPaymentUnconfirmed: config.onPaymentUnconfirmed ?? null,
+      onPaymentError: config.onPaymentError ?? null,
     };
 
     if (!Object.values(SUPPORTED_CURRENCIES).includes(this.config.currency)) {
@@ -70,21 +75,59 @@ class KwesPayWidget {
       wcUri: null,
     };
 
+    // Internal Promise machinery — reset each open() call
+    this._paymentResolve = null;
+    this._paymentReject = null;
+    this._finalised = false;
+
     this._init();
   }
 
-  async open() {
+  open() {
+    // Fresh promise + guard for every payment attempt
+    this._finalised = false;
+    this._paymentPromise = new Promise((resolve, reject) => {
+      this._paymentResolve = resolve;
+      this._paymentReject = reject;
+    });
+
     const overlay = document.getElementById("kwespay-widget-overlay");
     const container = document.getElementById("kwespay-widget-container");
-    if (!overlay || !container) return;
+    if (overlay && container) {
+      container.classList.remove("closing");
+      overlay.classList.add("open");
+      document.body.classList.add("kwespay-open");
+      this.state.isOpen = true;
+    }
 
-    container.classList.remove("closing");
-    overlay.classList.add("open");
-    document.body.classList.add("kwespay-open");
-    this.state.isOpen = true;
-
-    await this._validateAPIKey();
+    this._validateAPIKey();
     dispatchWidgetEvent("widgetOpened", {});
+
+    return this._paymentPromise;
+  }
+
+
+  _finalisePayment(payload) {
+    if (this._finalised) return;
+    this._finalised = true;
+
+    // Legacy surface — still fires so existing DOM-event integrations keep working
+    dispatchWidgetEvent("paymentConfirmed", payload);
+    this.config.onPaymentConfirmed?.(payload);
+
+    this._paymentResolve?.(payload);
+    this.close();
+  }
+
+
+  _failPayment(message, errorType) {
+    // Legacy surface
+    const errorPayload = { error: message, errorType };
+    dispatchWidgetEvent("paymentError", errorPayload);
+    this.config.onPaymentError?.(errorPayload);
+
+    const err = Object.assign(new Error(message), { code: errorType });
+    this._paymentReject?.(err);
   }
 
   close() {
@@ -96,24 +139,23 @@ class KwesPayWidget {
     const closedAfterSuccess = this.state.currentStep === 5;
     const mobile = window.innerWidth <= 480;
 
-    if (mobile) {
-      container.classList.add("closing");
-      setTimeout(() => {
-        container.classList.remove("closing");
-        overlay.classList.remove("open");
-        document.body.classList.remove("kwespay-open");
-        this.state.isOpen = false;
-        dispatchWidgetEvent("widgetClosed", {
-          completedPayment: closedAfterSuccess,
-        });
-      }, 300);
-    } else {
+    const finish = () => {
       overlay.classList.remove("open");
       document.body.classList.remove("kwespay-open");
       this.state.isOpen = false;
       dispatchWidgetEvent("widgetClosed", {
         completedPayment: closedAfterSuccess,
       });
+    };
+
+    if (mobile) {
+      container.classList.add("closing");
+      setTimeout(() => {
+        container.classList.remove("closing");
+        finish();
+      }, 300);
+    } else {
+      finish();
     }
   }
 
@@ -154,6 +196,16 @@ class KwesPayWidget {
     this.walletService?.disconnect();
     document.getElementById("kwespay-widget-overlay")?.remove();
     document.getElementById("kwespay-widget-styles")?.remove();
+
+    // Reject the open() promise if destroy() is called mid-payment
+    if (!this._finalised) {
+      this._paymentReject?.(
+        Object.assign(new Error("Widget destroyed"), {
+          code: "WIDGET_DESTROYED",
+        })
+      );
+    }
+
     this.state = null;
     this.config = null;
     this.walletService = null;

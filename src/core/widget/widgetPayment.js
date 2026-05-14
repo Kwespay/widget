@@ -20,6 +20,7 @@ export const PaymentMethods = {
     try {
       this._clearQuoteTimer();
       this._goToStep(4);
+      this._setProcessingView("processing");
 
       const setStatus = (title, text) => {
         const titleEl = document.getElementById("kwespay-processingTitle");
@@ -30,18 +31,14 @@ export const PaymentMethods = {
 
       const isWC = this.walletService.connectionType === "walletconnect";
       const isMobile = this.walletService.isMobile();
-      const strictMobile = isWC && isMobile; // mobile WC path — no network switching, no RPC shortcuts
+      const strictMobile = isWC && isMobile;
       const provider = this.walletService.getProvider();
       const targetChainId = this.state.selectedChainId;
 
       if (!provider) throw new Error("No wallet provider");
 
-
       const alive = await this.walletService.isSessionAlive();
       if (!alive) {
-        console.error(
-          "[KwesPay] Session liveness check failed — session appears stale"
-        );
         await this.walletService.disconnect();
         const err = new Error(
           "Your wallet session expired. Please reconnect your wallet."
@@ -50,7 +47,6 @@ export const PaymentMethods = {
         throw err;
       }
 
-     
       if (isMobile) {
         document
           .getElementById("kwespay-mobileTransactionInstruction")
@@ -58,17 +54,10 @@ export const PaymentMethods = {
       }
 
       if (strictMobile) {
-
         await this._assertMobileChain(provider, targetChainId);
       } else {
         const rawChain = await provider.request({ method: "eth_chainId" });
         const currentChainId = parseInt(rawChain, 16);
-
-        console.log("[KwesPay] Desktop chain check —", {
-          currentChainId,
-          targetChainId,
-        });
-
         if (currentChainId !== targetChainId) {
           setStatus(
             "Switching network…",
@@ -81,11 +70,9 @@ export const PaymentMethods = {
             this.state.selectedToken,
             this.state.selectedTokenConfig.decimals
           );
-          console.log("[KwesPay] Network switched");
         }
       }
 
-   
       if (strictMobile) {
         setStatus(
           "Opening your wallet…",
@@ -106,17 +93,37 @@ export const PaymentMethods = {
         onStatusUpdate: setStatus,
       });
 
-  
       document
         .getElementById("kwespay-mobileTransactionInstruction")
         ?.style.setProperty("display", "none");
 
-     
-      const decimals = this.state.selectedTokenConfig?.decimals ?? 6;
-      const amountBig = BigInt(this.state.currentPayload.amountBaseUnits);
-      const cryptoDisplay = `${formatUnits(amountBig, decimals)} ${
-        this.state.selectedToken
-      }`;
+      // On-chain tx is done — show confirming state and fire the legacy
+      // paymentSuccess event so integrators that listen to it can update their UI.
+      this._setProcessingView("confirming");
+
+      const onChainPayload = {
+        transactionReference: receipt.transactionReference,
+        paymentIdBytes32: receipt.paymentIdBytes32,
+        transactionHash: receipt.hash,
+        transactionStatus: "pending",
+        fiatAmount: this.config.amount,
+        currency: this.config.currency,
+        token: this.state.selectedToken,
+        network: this.state.selectedNetwork,
+      };
+
+      dispatchWidgetEvent("paymentSuccess", onChainPayload);
+      this.config.onPaymentSuccess?.(onChainPayload);
+
+      // Wait for backend confirmation — always resolves, never throws outward
+      const confirmed = await this._awaitBackendConfirmation(receipt);
+
+      // Populate success sub-view
+      const decimals = this.state.selectedTokenConfig?.decimals ?? 18;
+      const sym = this.state.selectedToken;
+      const payload = this.state.currentPayload;
+      const totalBig = BigInt(payload.totalBaseUnits);
+      const cryptoDisplay = `${formatUnits(totalBig, decimals)} ${sym}`;
 
       document.getElementById("kwespay-txHash").textContent = truncateHash(
         receipt.hash
@@ -131,25 +138,27 @@ export const PaymentMethods = {
       document.getElementById("kwespay-explorerLink").href =
         NETWORK_CONFIGS[this.state.selectedNetwork].explorer + receipt.hash;
 
-      this._goToStep(5);
+      this._setProcessingView("success");
 
-      dispatchWidgetEvent("paymentSuccess", {
+      // transactionStatus is "completed" if backend confirmed, "unconfirmed" on timeout.
+      // Both mean the on-chain tx is done — treat both as success.
+      const finalStatus = confirmed?.transactionStatus ?? "completed";
+
+      const finalPayload = {
         transactionReference: receipt.transactionReference,
         paymentIdBytes32: receipt.paymentIdBytes32,
         transactionHash: receipt.hash,
+        transactionStatus: finalStatus,
         fiatAmount: this.config.amount,
         currency: this.config.currency,
         token: this.state.selectedToken,
         network: this.state.selectedNetwork,
-      });
-    } catch (error) {
-      console.error(
-        "[KwesPay] Payment error —",
-        error.code ?? "UNKNOWN",
-        ":",
-        error.message
-      );
+      };
 
+      // _finalisePayment fires the DOM event + callback (backward compat),
+      // resolves the open() Promise, and closes the widget.
+      this._finalisePayment(finalPayload);
+    } catch (error) {
       document
         .getElementById("kwespay-mobileTransactionInstruction")
         ?.style.setProperty("display", "none");
@@ -172,47 +181,90 @@ export const PaymentMethods = {
       }
 
       this._showError(title, message);
-      dispatchWidgetEvent("paymentError", { error: message, errorType });
+
+      // _failPayment fires the DOM event + callback (backward compat) and
+      // rejects the open() Promise.
+      this._failPayment(message, errorType);
     }
   },
 
-  /**
-   * Confirm the wallet is on the target chain before sending a transaction.
-   * Retries up to 3 times with 1s delay to handle WC relay propagation lag.
-   * Throws WRONG_NETWORK if the chain never matches.
-   *
-   * MOBILE WC ONLY — never call this on desktop/injected.
-   */
+  _setProcessingView(view) {
+    ["processing", "confirming", "success"].forEach((v) => {
+      const el = document.getElementById(`kwespay-view-${v}`);
+      if (el)
+        el.style.display =
+          v === view ? (v === "success" ? "flex" : "") : "none";
+    });
+
+    const dot = document.getElementById("kwespay-step4-dot");
+    const title = document.getElementById("kwespay-step4-title");
+    const secure = document.getElementById("kwespay-step4-secure");
+
+    if (view === "success") {
+      if (dot) {
+        dot.style.background = "var(--kp-green)";
+        dot.style.boxShadow = "0 0 8px rgba(16,185,129,0.4)";
+        dot.style.animation = "none";
+      }
+      if (title) title.textContent = "Payment Complete";
+      if (secure) secure.style.display = "flex";
+    } else {
+      if (dot) {
+        dot.style.background = "var(--kp-accent)";
+        dot.style.boxShadow = "0 0 8px var(--kp-accent-glow)";
+        dot.style.animation = "";
+      }
+      if (title) title.textContent = "KwesPay Checkout";
+      if (secure) secure.style.display = "none";
+    }
+  },
+
+  // Polls backend for confirmation. Always resolves (never throws outward).
+  // On timeout, fires the legacy paymentUnconfirmed DOM event so integrators
+  // that need it can reconcile async on their backend.
+  _awaitBackendConfirmation(receipt) {
+    return this.paymentService
+      .pollTransactionStatus(receipt.transactionReference, {
+        intervalMs: 4000,
+        maxAttempts: 15,
+        onStatus: (status) => {
+          const el = document.getElementById("kwespay-confirmingText");
+          if (el) el.textContent = `Network status: ${status}…`;
+        },
+      })
+      .catch((err) => {
+        // Polling timed out — on-chain tx is done so proceed to success.
+        // Fire paymentUnconfirmed for integrators that want async reconciliation.
+        dispatchWidgetEvent("paymentUnconfirmed", {
+          transactionReference: receipt.transactionReference,
+          transactionHash: receipt.hash,
+          reason: err.message,
+        });
+        this.config.onPaymentUnconfirmed?.({
+          transactionReference: receipt.transactionReference,
+          transactionHash: receipt.hash,
+          reason: err.message,
+        });
+        return { transactionStatus: "unconfirmed" };
+      });
+  },
+
   async _assertMobileChain(provider, targetChainId) {
     const MAX_ATTEMPTS = 3;
     const DELAY_MS = 1000;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       let currentChainId = null;
-
       try {
         const raw = await provider.request({ method: "eth_chainId" });
         currentChainId = parseInt(raw, 16);
-      } catch (err) {
-        console.error(
-          `[KwesPay] eth_chainId RPC failed (attempt ${attempt}/${MAX_ATTEMPTS}):`,
-          err.message
-        );
+      } catch {
+        // RPC failed, will retry
       }
 
-      console.log(
-        `[KwesPay] Chain check attempt ${attempt}/${MAX_ATTEMPTS} —`,
-        { currentChainId, targetChainId }
-      );
-
-      if (currentChainId === targetChainId) {
-        console.log("[KwesPay] Chain confirmed ✅", currentChainId);
-        return;
-      }
-
-      if (attempt < MAX_ATTEMPTS) {
+      if (currentChainId === targetChainId) return;
+      if (attempt < MAX_ATTEMPTS)
         await new Promise((r) => setTimeout(r, DELAY_MS));
-      }
     }
 
     const err = new Error(
@@ -222,7 +274,6 @@ export const PaymentMethods = {
     throw err;
   },
 
-
   async _switchNetworkSafe(
     chainId,
     networkName,
@@ -230,9 +281,7 @@ export const PaymentMethods = {
     tokenSymbol,
     tokenDecimals
   ) {
-    const switchNetwork = this.walletService.switchNetwork;
     const provider = this.walletService.getProvider();
-
     if (!provider) throw new Error("[WalletService] No provider connected");
 
     const toHex = (val) => {
@@ -257,15 +306,12 @@ export const PaymentMethods = {
         await provider.request({ method: "eth_chainId" })
       );
       if (currentHex && currentHex === targetHex) return;
-    } catch (err) {
-      console.warn(
-        "[KwesPay] Could not read chainId before switch:",
-        err.message
-      );
+    } catch {
+      // Can't read current chain — proceed to switch anyway
     }
 
     try {
-      await switchNetwork(
+      await this.walletService.switchNetwork(
         chainId,
         networkName,
         rpcUrl,
@@ -273,15 +319,9 @@ export const PaymentMethods = {
         tokenDecimals
       );
     } catch (err) {
-      if (err.code === 4001) throw err; // user rejected
-      // Some wallets throw even on success — continue to verify below
-      console.warn(
-        "[KwesPay] switchNetwork threw (verifying anyway):",
-        err.message
-      );
+      if (err.code === 4001) throw err;
     }
 
-    // Poll until confirmed or 15s timeout
     const POLL_MS = 500;
     const TIMEOUT_MS = 15_000;
     const started = Date.now();
@@ -292,22 +332,14 @@ export const PaymentMethods = {
         const currentHex = toHex(
           await provider.request({ method: "eth_chainId" })
         );
-        if (currentHex && currentHex === targetHex) {
-          console.log(
-            `[KwesPay] Network switch confirmed after ${
-              Date.now() - started
-            }ms ✅`
-          );
-          return;
-        }
-      } catch (err) {
-        console.warn("[KwesPay] Poll eth_chainId error:", err.message);
+        if (currentHex && currentHex === targetHex) return;
+      } catch {
+        // Poll error — keep trying
       }
     }
 
     throw new Error(
-      `Could not confirm network switch to ${networkName} after 15s. ` +
-        `Please switch manually in your wallet and try again.`
+      `Could not confirm network switch to ${networkName} after 15s. Please switch manually in your wallet and try again.`
     );
   },
 };

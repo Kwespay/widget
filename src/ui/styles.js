@@ -42,25 +42,33 @@ export const WIDGET_STYLES = `
 
   .kwespay-close-btn {
     position: absolute;
-    top: 20px; right: 20px;
+    top: 12px;
+    right: 12px;
     background: rgba(255,255,255,0.06);
     border: 1px solid var(--kp-border);
     color: var(--kp-muted);
-    width: 34px; height: 34px;
-    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 16px;
     transition: all 0.15s;
-    z-index: 1000000;
+    z-index: 10;
   }
 
   .kwespay-close-btn:hover {
     background: rgba(255,255,255,0.1);
     color: var(--kp-text);
     border-color: var(--kp-border-active);
+  }
+
+  .kwespay-steps-wrapper {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
   }
 
   .material-symbols-outlined {
@@ -563,6 +571,22 @@ export const WIDGET_STYLES = `
     animation: kpSpin 1.2s linear infinite reverse;
   }
 
+  /* Soft green spinner for confirming sub-view */
+  .kp-spin-soft.spinner-ring {
+    border-top-color: rgba(16,185,129,0.55);
+    animation-duration: 1.6s;
+  }
+
+  .kp-spin-soft.spinner-ring-2 {
+    border-bottom-color: rgba(16,185,129,0.18);
+    animation-duration: 2.2s;
+  }
+
+  .kp-spinner-icon-green {
+    background: rgba(16,185,129,0.08) !important;
+    border-color: rgba(16,185,129,0.15) !important;
+  }
+
   @keyframes kpSpin { to { transform: rotate(360deg); } }
 
   .spinner-icon {
@@ -594,6 +618,42 @@ export const WIDGET_STYLES = `
     padding: 0 8px;
     margin-bottom: 8px;
     font-weight: 400;
+  }
+
+  /* "Transaction sent on-chain" pill shown during confirming sub-view */
+  .kp-onchain-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 14px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.18);
+    font-family: var(--kp-mono);
+    font-size: 10px;
+    color: var(--kp-green);
+    letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+
+  .kp-onchain-badge .material-symbols-outlined { font-size: 12px; color: var(--kp-green); }
+
+  /* Thin green confirmation bar at top of success sub-view */
+  .kp-confirmed-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 20px;
+    background: rgba(16,185,129,0.06);
+    border-bottom: 1px solid rgba(16,185,129,0.12);
+    font-family: var(--kp-mono);
+    font-size: 10px;
+    color: var(--kp-green);
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    flex-shrink: 0;
   }
 
   .success-icon {
@@ -805,6 +865,44 @@ export const WIDGET_STYLES = `
   .kp-quote-timer.urgent { color: #fb923c; }
   .kp-quote-timer.expired { color: var(--kp-red); }
 
+  .kp-mobile-connect-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--kp-accent-dim);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 4px;
+  }
+
+  .kp-mobile-status-icon {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .kp-mobile-status-text { flex: 1; }
+
+  .kp-mobile-status-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--kp-text);
+    margin-bottom: 2px;
+  }
+
+  .kp-mobile-status-desc {
+    font-family: var(--kp-mono);
+    font-size: 11px;
+    color: var(--kp-muted);
+  }
+
+  .kp-wallet-option:active {
+    transform: scale(0.98);
+    background: var(--kp-accent-dim);
+    border-color: var(--kp-border-active);
+  }
+
   @media (max-width: 480px) {
     .kwespay-overlay {
       padding: 0;
@@ -841,46 +939,6 @@ export const WIDGET_STYLES = `
       z-index: 10;
     }
   }
-
-
-.kp-mobile-connect-status {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--kp-accent-dim);
-  border: 1px solid rgba(99,102,241,0.2);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 4px;
-}
-
-.kp-mobile-status-icon {
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-
-.kp-mobile-status-text { flex: 1; }
-
-.kp-mobile-status-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--kp-text);
-  margin-bottom: 2px;
-}
-
-.kp-mobile-status-desc {
-  font-family: var(--kp-mono);
-  font-size: 11px;
-  color: var(--kp-muted);
-}
-
-.kp-wallet-option:active {
-  transform: scale(0.98);
-  background: var(--kp-accent-dim);
-  border-color: var(--kp-border-active);
-}
-
 
   @keyframes kpSheetUp {
     from { transform: translateY(100%); opacity: 0.8; }
