@@ -50,6 +50,18 @@ export function formatFiatAmount(amount, currency) {
   return `${num.toFixed(2)} ${currency}`;
 }
 
+export function formatCryptoAmount(amount, symbol = "") {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (isNaN(num) || num === 0) return symbol ? `0 ${symbol}` : "0";
+
+  const magnitude = Math.floor(Math.log10(Math.abs(num)));
+  const decimalPlaces = Math.max(0, 5 - magnitude);
+  const capped = Math.min(decimalPlaces, 8);
+  const formatted = num.toFixed(capped).replace(/\.?0+$/, "");
+
+  return symbol ? `${formatted} ${symbol}` : formatted;
+}
+
 export function getErrorType(error) {
   const msg = error?.message ?? "";
   if (

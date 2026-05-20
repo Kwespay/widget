@@ -23,6 +23,14 @@ function resolveAcceptedTokens(input) {
   return null;
 }
 
+function formatFiatDisplay(amount) {
+  const num = parseFloat(amount);
+  if (isNaN(num)) return "0.00";
+  return num % 1 === 0
+    ? num.toString()
+    : parseFloat(num.toPrecision(10)).toString();
+}
+
 class KwesPayWidget {
   constructor(config) {
     if (!config.apiKey) throw new Error("[KwesPayWidget] apiKey is required");
@@ -38,7 +46,6 @@ class KwesPayWidget {
       currency: config.currency || DEFAULT_CONFIG.currency,
       graphqlEndpoint: DEFAULT_CONFIG.graphqlEndpoint,
       acceptedTokens: resolveAcceptedTokens(config.acceptedTokens),
-      // Legacy constructor callbacks — still supported for backward compat
       onPaymentSuccess: config.onPaymentSuccess ?? null,
       onPaymentConfirmed: config.onPaymentConfirmed ?? null,
       onPaymentUnconfirmed: config.onPaymentUnconfirmed ?? null,
@@ -75,16 +82,19 @@ class KwesPayWidget {
       wcUri: null,
     };
 
-    // Internal Promise machinery — reset each open() call
     this._paymentResolve = null;
     this._paymentReject = null;
     this._finalised = false;
+    this._receiptCountdownInterval = null;
 
     this._init();
   }
 
+  get _displayAmount() {
+    return formatFiatDisplay(this.config.amount);
+  }
+
   open() {
-    // Fresh promise + guard for every payment attempt
     this._finalised = false;
     this._paymentPromise = new Promise((resolve, reject) => {
       this._paymentResolve = resolve;
@@ -106,22 +116,21 @@ class KwesPayWidget {
     return this._paymentPromise;
   }
 
-
-  _finalisePayment(payload) {
+  _finalisePayment(payload, autoClose = true) {
     if (this._finalised) return;
     this._finalised = true;
 
-    // Legacy surface — still fires so existing DOM-event integrations keep working
     dispatchWidgetEvent("paymentConfirmed", payload);
     this.config.onPaymentConfirmed?.(payload);
 
     this._paymentResolve?.(payload);
-    this.close();
+
+    if (autoClose) {
+      this.close();
+    }
   }
 
-
   _failPayment(message, errorType) {
-    // Legacy surface
     const errorPayload = { error: message, errorType };
     dispatchWidgetEvent("paymentError", errorPayload);
     this.config.onPaymentError?.(errorPayload);
@@ -135,8 +144,10 @@ class KwesPayWidget {
     const container = document.getElementById("kwespay-widget-container");
     if (!overlay || !container) return;
 
+    this._stopReceiptCountdown();
     this._clearQuoteTimer();
-    const closedAfterSuccess = this.state.currentStep === 5;
+
+    const closedAfterSuccess = this.state.currentStep === 4;
     const mobile = window.innerWidth <= 480;
 
     const finish = () => {
@@ -173,12 +184,13 @@ class KwesPayWidget {
     ) {
       this.config.currency = newCurrency;
     }
+    const display = `${this._displayAmount} ${this.config.currency}`;
     document
       .querySelectorAll(
         '[id*="paymentAmount"], [id*="summaryFiatAmount"], [id*="txFiatAmount"], [id*="reviewFiatAmount"]'
       )
       .forEach((el) => {
-        el.textContent = `${this.config.amount} ${this.config.currency}`;
+        el.textContent = display;
       });
     dispatchWidgetEvent("amountUpdated", {
       amount: this.config.amount,
@@ -191,13 +203,13 @@ class KwesPayWidget {
   }
 
   destroy() {
+    this._stopReceiptCountdown();
     this._clearQuoteTimer();
     document.body.classList.remove("kwespay-open");
     this.walletService?.disconnect();
     document.getElementById("kwespay-widget-overlay")?.remove();
     document.getElementById("kwespay-widget-styles")?.remove();
 
-    // Reject the open() promise if destroy() is called mid-payment
     if (!this._finalised) {
       this._paymentReject?.(
         Object.assign(new Error("Widget destroyed"), {

@@ -52,7 +52,7 @@ export const DomMethods = {
     const stepsWrapper = document.createElement("div");
     stepsWrapper.className = "kwespay-steps-wrapper";
     stepsWrapper.innerHTML = getStepTemplates(
-      this.config.amount,
+      this._displayAmount,
       this.config.currency
     );
     container.appendChild(stepsWrapper);

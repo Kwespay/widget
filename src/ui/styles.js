@@ -4,20 +4,20 @@ export const WIDGET_STYLES = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
-    --kp-bg: #0a0a0f;
-    --kp-surface: #0f0f18;
-    --kp-surface-2: #16161f;
-    --kp-border: rgba(255,255,255,0.06);
+    --kp-bg:           #0a0a0f;
+    --kp-surface:      #0f0f18;
+    --kp-surface-2:    #16161f;
+    --kp-border:       rgba(255,255,255,0.06);
     --kp-border-active: rgba(99,102,241,0.5);
-    --kp-accent: #6366f1;
-    --kp-accent-dim: rgba(99,102,241,0.1);
-    --kp-accent-glow: rgba(99,102,241,0.25);
-    --kp-green: #10b981;
-    --kp-red: #f43f5e;
-    --kp-text: #f1f0ff;
-    --kp-muted: #6b6a80;
-    --kp-mono: 'Inter', monospace;
-    --kp-sans: 'Inter', sans-serif;
+    --kp-accent:       #6366f1;
+    --kp-accent-dim:   rgba(99,102,241,0.1);
+    --kp-accent-glow:  rgba(99,102,241,0.25);
+    --kp-green:        #10b981;
+    --kp-red:          #f43f5e;
+    --kp-text:         #f1f0ff;
+    --kp-muted:        #6b6a80;
+    --kp-mono:         'Inter', monospace;
+    --kp-sans:         'Inter', sans-serif;
   }
 
   body.kwespay-open {
@@ -42,18 +42,14 @@ export const WIDGET_STYLES = `
 
   .kwespay-close-btn {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 12px; right: 12px;
     background: rgba(255,255,255,0.06);
     border: 1px solid var(--kp-border);
     color: var(--kp-muted);
-    width: 28px;
-    height: 28px;
+    width: 28px; height: 28px;
     border-radius: 7px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     font-size: 16px;
     transition: all 0.15s;
     z-index: 10;
@@ -129,6 +125,8 @@ export const WIDGET_STYLES = `
     to   { opacity: 0; }
   }
 
+
+
   .kp-topbar {
     display: flex;
     align-items: center;
@@ -145,11 +143,8 @@ export const WIDGET_STYLES = `
   }
 
   .kp-back-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
     border-radius: 7px;
     background: rgba(255,255,255,0.04);
     border: 1px solid var(--kp-border);
@@ -174,11 +169,12 @@ export const WIDGET_STYLES = `
     background: var(--kp-accent);
     box-shadow: 0 0 8px var(--kp-accent-glow);
     animation: kpPulse 2s ease infinite;
+    flex-shrink: 0;
   }
 
   @keyframes kpPulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    50%       { opacity: 0.4; }
   }
 
   .kp-topbar-name {
@@ -189,9 +185,7 @@ export const WIDGET_STYLES = `
   }
 
   .kp-topbar-secure {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    display: flex; align-items: center; gap: 5px;
     font-family: var(--kp-mono);
     font-size: 10px;
     color: var(--kp-muted);
@@ -199,10 +193,8 @@ export const WIDGET_STYLES = `
     font-weight: 500;
   }
 
-  .kp-topbar-secure .material-symbols-outlined {
-    font-size: 13px;
-    color: var(--kp-green);
-  }
+  .kp-topbar-secure .material-symbols-outlined { font-size: 13px; color: var(--kp-green); }
+
 
   .kp-amount-block {
     padding: 20px 20px 16px;
@@ -249,6 +241,8 @@ export const WIDGET_STYLES = `
 
   .kp-amount-crypto.loading { opacity: 0.4; }
 
+  /* ── Progress ───────────────────────────────────────────────────────────── */
+
   .progress-section {
     padding: 14px 20px 12px;
     border-bottom: 1px solid var(--kp-border);
@@ -256,9 +250,7 @@ export const WIDGET_STYLES = `
   }
 
   .progress-info {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 8px;
   }
 
@@ -281,8 +273,7 @@ export const WIDGET_STYLES = `
   .progress-bars { display: flex; width: 100%; gap: 5px; }
 
   .progress-bar {
-    height: 2px;
-    flex: 1;
+    height: 2px; flex: 1;
     border-radius: 999px;
     background: var(--kp-surface-2);
     transition: background 0.3s ease;
@@ -292,6 +283,8 @@ export const WIDGET_STYLES = `
     background: var(--kp-accent);
     box-shadow: 0 0 8px var(--kp-accent-glow);
   }
+
+  /* ── Scrollable content ─────────────────────────────────────────────────── */
 
   .section-hint {
     font-size: 12px;
@@ -316,10 +309,10 @@ export const WIDGET_STYLES = `
     border-radius: 10px;
   }
 
+  /* ── Network list ───────────────────────────────────────────────────────── */
+
   .item-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    display: flex; flex-direction: column; gap: 6px;
     margin-bottom: 6px;
   }
 
@@ -338,9 +331,7 @@ export const WIDGET_STYLES = `
   }
 
   .list-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     background: var(--kp-surface);
     padding: 12px 14px;
     border-radius: 12px;
@@ -365,15 +356,11 @@ export const WIDGET_STYLES = `
     flex-shrink: 0;
   }
 
-  .item-icon img { width: 22px; height: 22px; object-fit: contain; }
+  .item-icon img { width: 28px; height: 28px; object-fit: contain; }
   .item-info { display: flex; flex-direction: column; flex: 1; }
   .item-name-row { display: flex; align-items: center; gap: 7px; }
 
-  .item-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--kp-text);
-  }
+  .item-name { font-size: 13px; font-weight: 600; color: var(--kp-text); }
 
   .item-badge {
     padding: 1px 6px;
@@ -401,10 +388,10 @@ export const WIDGET_STYLES = `
 
   .item-chevron { color: var(--kp-muted); font-size: 16px; }
 
+  /* ── Token list ─────────────────────────────────────────────────────────── */
+
   .token-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     padding: 13px 14px;
     cursor: pointer;
     transition: all 0.15s;
@@ -417,14 +404,24 @@ export const WIDGET_STYLES = `
   }
 
   .token-item:last-child { margin-bottom: 0; }
-  .token-item:hover { border-color: var(--kp-border-active); background: var(--kp-accent-dim); }
-  .token-item.selected { background: var(--kp-accent-dim); border-color: var(--kp-accent); }
+
+  .token-item:hover {
+    border-color: var(--kp-border-active);
+    background: var(--kp-accent-dim);
+  }
+
+  .token-item.selected {
+    background: var(--kp-accent-dim);
+    border-color: var(--kp-accent);
+  }
+
   .token-item.selected::after {
     content: '';
     position: absolute; inset: 0;
     background: linear-gradient(90deg, rgba(99,102,241,0.08) 0%, transparent 100%);
     pointer-events: none;
   }
+
   .token-item.selected .token-symbol { color: var(--kp-accent); }
 
   .token-left { display: flex; align-items: center; gap: 12px; flex: 1; }
@@ -434,11 +431,8 @@ export const WIDGET_STYLES = `
     border-radius: 10px;
     background: var(--kp-surface-2);
     border: 1px solid var(--kp-border);
-    overflow: hidden;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
   }
 
   .token-icon img { width: 22px; height: 22px; object-fit: contain; }
@@ -463,6 +457,8 @@ export const WIDGET_STYLES = `
 
   .token-chevron { color: var(--kp-muted); font-size: 16px; flex-shrink: 0; }
   #kwespay-tokenList { display: flex; flex-direction: column; }
+
+  /* ── Buttons ────────────────────────────────────────────────────────────── */
 
   .bottom-action {
     padding: 12px 20px 16px;
@@ -505,6 +501,7 @@ export const WIDGET_STYLES = `
   }
 
   .action-btn.secondary::before { display: none; }
+
   .action-btn.secondary:hover {
     background: var(--kp-surface-2);
     border-color: var(--kp-border-active);
@@ -514,14 +511,13 @@ export const WIDGET_STYLES = `
 
   .action-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
 
+  /* ── Footer ─────────────────────────────────────────────────────────────── */
+
   .kp-footer {
     padding: 10px 20px 12px;
     background: var(--kp-bg);
     border-top: 1px solid var(--kp-border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
     flex-shrink: 0;
   }
 
@@ -537,11 +533,11 @@ export const WIDGET_STYLES = `
 
   .kp-footer-text span { color: var(--kp-text); font-weight: 500; }
 
+  /* ── Spinner / loading ──────────────────────────────────────────────────── */
+
   .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
     padding: 24px 20px;
     flex: 1;
   }
@@ -571,7 +567,6 @@ export const WIDGET_STYLES = `
     animation: kpSpin 1.2s linear infinite reverse;
   }
 
-  /* Soft green spinner for confirming sub-view */
   .kp-spin-soft.spinner-ring {
     border-top-color: rgba(16,185,129,0.55);
     animation-duration: 1.6s;
@@ -620,11 +615,10 @@ export const WIDGET_STYLES = `
     font-weight: 400;
   }
 
-  /* "Transaction sent on-chain" pill shown during confirming sub-view */
+  /* ── Processing badges ──────────────────────────────────────────────────── */
+
   .kp-onchain-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
+    display: inline-flex; align-items: center; gap: 5px;
     margin-top: 14px;
     padding: 6px 14px;
     border-radius: 20px;
@@ -639,12 +633,8 @@ export const WIDGET_STYLES = `
 
   .kp-onchain-badge .material-symbols-outlined { font-size: 12px; color: var(--kp-green); }
 
-  /* Thin green confirmation bar at top of success sub-view */
   .kp-confirmed-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
     padding: 8px 20px;
     background: rgba(16,185,129,0.06);
     border-bottom: 1px solid rgba(16,185,129,0.12);
@@ -655,6 +645,8 @@ export const WIDGET_STYLES = `
     font-weight: 500;
     flex-shrink: 0;
   }
+
+  /* ── Success icons ──────────────────────────────────────────────────────── */
 
   .success-icon {
     width: 64px; height: 64px;
@@ -667,6 +659,8 @@ export const WIDGET_STYLES = `
 
   .success-icon .material-symbols-outlined { font-size: 36px; color: var(--kp-green); }
 
+  /* ── Error icon + hint ──────────────────────────────────────────────────── */
+
   .error-icon {
     width: 64px; height: 64px;
     border-radius: 16px;
@@ -678,12 +672,28 @@ export const WIDGET_STYLES = `
 
   .error-icon .material-symbols-outlined { font-size: 36px; color: var(--kp-red); }
 
+  /* Reassuring strip below the error message */
+  .kp-error-hint {
+    display: flex; align-items: flex-start; gap: 7px;
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--kp-border);
+    font-family: var(--kp-mono);
+    font-size: 11px;
+    color: var(--kp-muted);
+    line-height: 1.55;
+    max-width: 280px;
+    text-align: left;
+  }
+
+  /* ── Network status pill ────────────────────────────────────────────────── */
+
   .network-status { padding: 14px 20px 0; }
 
   .status-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: flex; align-items: center; gap: 10px;
     background: var(--kp-accent-dim);
     border: 1px solid rgba(99,102,241,0.2);
     border-radius: 10px;
@@ -700,6 +710,8 @@ export const WIDGET_STYLES = `
 
   .status-icon img { width: 16px; height: 16px; object-fit: contain; }
   .status-text { color: var(--kp-accent); font-size: 12px; font-weight: 600; flex: 1; }
+
+  /* ── Review body ────────────────────────────────────────────────────────── */
 
   .kp-review-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
   .kp-review-body::-webkit-scrollbar { width: 3px; }
@@ -732,6 +744,8 @@ export const WIDGET_STYLES = `
 
   .kp-review-crypto-line.loading { opacity: 0.4; }
 
+  /* ── Detail / fee blocks ────────────────────────────────────────────────── */
+
   .kp-detail-block {
     background: var(--kp-surface);
     border: 1px solid var(--kp-border);
@@ -741,9 +755,7 @@ export const WIDGET_STYLES = `
   }
 
   .kp-detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between; align-items: center;
     padding: 11px 16px;
     border-bottom: 1px solid var(--kp-border);
   }
@@ -767,7 +779,7 @@ export const WIDGET_STYLES = `
   }
 
   .kp-detail-val.accent { color: var(--kp-accent); }
-  .kp-detail-val.green { color: var(--kp-green); }
+  .kp-detail-val.green  { color: var(--kp-green); }
 
   .kp-fee-block {
     background: rgba(16,185,129,0.04);
@@ -797,6 +809,8 @@ export const WIDGET_STYLES = `
 
   .kp-fee-header .material-symbols-outlined { font-size: 13px; color: var(--kp-green); }
 
+  /* ── Transaction receipt ────────────────────────────────────────────────── */
+
   .tx-details {
     width: 100%;
     background: var(--kp-surface);
@@ -807,17 +821,15 @@ export const WIDGET_STYLES = `
   }
 
   .tx-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px;
     border-bottom: 1px solid var(--kp-border);
   }
 
   .tx-row:last-child { border-bottom: none; }
 
-  .tx-label { font-family: var(--kp-mono); color: var(--kp-muted); font-size: 10px; letter-spacing: 0.02em; font-weight: 400; }
-  .tx-value { color: var(--kp-text); font-size: 11px; font-weight: 500; font-family: var(--kp-mono); }
+  .tx-label  { font-family: var(--kp-mono); color: var(--kp-muted); font-size: 10px; letter-spacing: 0.02em; font-weight: 400; }
+  .tx-value  { color: var(--kp-text); font-size: 11px; font-weight: 500; font-family: var(--kp-mono); }
   .tx-hash-row { display: flex; align-items: center; gap: 8px; }
 
   .explorer-link {
@@ -834,26 +846,57 @@ export const WIDGET_STYLES = `
   .explorer-link:hover { background: rgba(99,102,241,0.2); }
   .explorer-link .material-symbols-outlined { font-size: 12px; color: var(--kp-accent); }
 
+
+
+  /* Full-width track that drains left-to-right */
+  .kp-countdown-track {
+    width: 100%;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--kp-surface-2);
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .kp-countdown-bar {
+    height: 100%;
+    width: 100%;
+    border-radius: 999px;
+    background: var(--kp-accent);
+    /* smooth drain: transition only width changes */
+    transition: width 0.9s linear, background 0.4s ease;
+  }
+
+  .kp-countdown-label {
+    font-family: var(--kp-mono);
+    font-size: 10px;
+    color: var(--kp-muted);
+    text-align: center;
+    letter-spacing: 0.04em;
+    font-weight: 400;
+    margin-bottom: 2px;
+  }
+
+
+
   .mobile-instruction {
     background: var(--kp-accent-dim);
     border: 1px solid rgba(99,102,241,0.2);
     border-radius: 10px;
     padding: 12px;
     margin: 12px 0 0;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    display: flex; align-items: flex-start; gap: 10px;
   }
 
   .mobile-instruction-icon { color: var(--kp-accent); font-size: 18px; flex-shrink: 0; margin-top: 1px; }
   .mobile-instruction-text { flex: 1; }
   .mobile-instruction-title { color: var(--kp-text); font-size: 12px; font-weight: 600; margin-bottom: 3px; }
-  .mobile-instruction-desc { color: var(--kp-muted); font-size: 11px; line-height: 1.5; font-weight: 400; }
+  .mobile-instruction-desc  { color: var(--kp-muted); font-size: 11px; line-height: 1.5; font-weight: 400; }
+
+  /* ── Quote timer ────────────────────────────────────────────────────────── */
 
   .kp-quote-timer {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    display: flex; align-items: center; gap: 5px;
     font-family: var(--kp-mono);
     font-size: 10px;
     color: var(--kp-muted);
@@ -862,13 +905,13 @@ export const WIDGET_STYLES = `
   }
 
   .kp-quote-timer .material-symbols-outlined { font-size: 12px; }
-  .kp-quote-timer.urgent { color: #fb923c; }
+  .kp-quote-timer.urgent  { color: #fb923c; }
   .kp-quote-timer.expired { color: var(--kp-red); }
 
+  /* ── WalletConnect mobile ───────────────────────────────────────────────── */
+
   .kp-mobile-connect-status {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     background: var(--kp-accent-dim);
     border: 1px solid rgba(99,102,241,0.2);
     border-radius: 12px;
@@ -876,32 +919,18 @@ export const WIDGET_STYLES = `
     margin-bottom: 4px;
   }
 
-  .kp-mobile-status-icon {
-    width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
+  .kp-mobile-status-icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .kp-mobile-status-text { flex: 1; }
-
-  .kp-mobile-status-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--kp-text);
-    margin-bottom: 2px;
-  }
-
-  .kp-mobile-status-desc {
-    font-family: var(--kp-mono);
-    font-size: 11px;
-    color: var(--kp-muted);
-  }
+  .kp-mobile-status-title { font-size: 13px; font-weight: 600; color: var(--kp-text); margin-bottom: 2px; }
+  .kp-mobile-status-desc  { font-family: var(--kp-mono); font-size: 11px; color: var(--kp-muted); }
 
   .kp-wallet-option:active {
     transform: scale(0.98);
     background: var(--kp-accent-dim);
     border-color: var(--kp-border-active);
   }
+
+
 
   @media (max-width: 480px) {
     .kwespay-overlay {
@@ -942,11 +971,11 @@ export const WIDGET_STYLES = `
 
   @keyframes kpSheetUp {
     from { transform: translateY(100%); opacity: 0.8; }
-    to   { transform: translateY(0); opacity: 1; }
+    to   { transform: translateY(0);    opacity: 1; }
   }
 
   @keyframes kpSheetDown {
-    from { transform: translateY(0); opacity: 1; }
+    from { transform: translateY(0);    opacity: 1; }
     to   { transform: translateY(100%); opacity: 0; }
   }
 `;

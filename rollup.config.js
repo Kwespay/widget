@@ -31,7 +31,8 @@ export default [
       {
         file: "dist/kwespay-widget.js",
         format: "umd",
-        name: "KwesPayWidget",
+        name: "KwesPay",
+        exports: "named",
         sourcemap: false,
         inlineDynamicImports: true,
         intro:
@@ -40,7 +41,8 @@ export default [
       {
         file: "dist/kwespay-widget.min.js",
         format: "umd",
-        name: "KwesPayWidget",
+        name: "KwesPay",
+        exports: "named",
         plugins: [terser()],
         sourcemap: false,
         inlineDynamicImports: true,

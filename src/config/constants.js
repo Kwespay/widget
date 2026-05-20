@@ -16,7 +16,7 @@ export const PLATFORM_FEE_BPS = 50;
 
 export const DEFAULT_CONFIG = {
   projectId: "3a2347dfc8ba5a336fe715a34644f490",
-  graphqlEndpoint: "https://d14d-154-161-233-215.ngrok-free.app/graphql",
+  graphqlEndpoint: "https://api.testnet.kwespay.xyz/graphql",
   currency: SUPPORTED_CURRENCIES.USD,
 };
 
@@ -66,6 +66,15 @@ export const NETWORK_CONFIGS = {
     explorer: "https://explorer.mezo.org/tx/",
     type: "mainnet",
   },
+  arbitrum: {
+    name: "Arbitrum",
+    chainId: 42161,
+    rpcUrl: "https://arb1.arbitrum.io/rpc",
+    contractAddress: "",
+    logo: "https://arthuremma2.github.io/img-hosting/arb44.svg",
+    explorer: "https://arbiscan.io/tx/",
+    type: "mainnet",
+  },
   sepolia: {
     name: "Sepolia",
     chainId: 11155111,
@@ -109,6 +118,15 @@ export const NETWORK_CONFIGS = {
     contractAddress: "0x67f3Df6B5BE714303F397104d8F2A3861b9E8b6d",
     logo: "https://arthuremma2.github.io/img-hosting/mezo.png",
     explorer: "https://explorer.test.mezo.org/tx/",
+    type: "testnet",
+  },
+  arbitrumSepolia: {
+    name: "Arbitrum Sepolia",
+    chainId: 421614,
+    rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
+    contractAddress: "0xa430B2e0D1273464809f8541286058e90781DA9C",
+    logo: "https://arthuremma2.github.io/img-hosting/arb44.svg",
+    explorer: "https://sepolia.arbiscan.io/tx/",
     type: "testnet",
   },
 };
@@ -249,7 +267,6 @@ export const TOKEN_CONFIGS = {
       coingeckoId: "mezo",
       binanceSymbol: null,
     },
-
     {
       symbol: "USDT",
       name: "Mock USDT",
@@ -260,7 +277,35 @@ export const TOKEN_CONFIGS = {
       binanceSymbol: "USDTUSDT",
     },
   ],
-
+  arbitrum: [
+    {
+      symbol: "ETH",
+      name: "Ethereum",
+      icon: "https://arthuremma2.github.io/img-hosting/ethereum-eth.svg",
+      address: "0x0000000000000000000000000000000000000000",
+      decimals: 18,
+      coingeckoId: "ethereum",
+      binanceSymbol: "ETHUSDT",
+    },
+    {
+      symbol: "USDC",
+      name: "USD Coin",
+      icon: "https://move-flow.github.io/assets/usd-coin-usdc-logo.svg",
+      address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      decimals: 6,
+      coingeckoId: "usd-coin",
+      binanceSymbol: "USDCUSDT",
+    },
+    {
+      symbol: "USDT",
+      name: "Tether USD",
+      icon: "https://move-flow.github.io/assets/tether-usdt-logo.svg",
+      address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      decimals: 6,
+      coingeckoId: "tether",
+      binanceSymbol: "USDTUSDT",
+    },
+  ],
   mezoTestnet: [
     // {
     //   symbol: "BTC",
@@ -280,7 +325,6 @@ export const TOKEN_CONFIGS = {
       coingeckoId: "mezo",
       binanceSymbol: "mezo",
     },
-
     {
       symbol: "USDT",
       name: "Mock USDT",
@@ -291,7 +335,6 @@ export const TOKEN_CONFIGS = {
       binanceSymbol: "USDTUSDT",
     },
   ],
-
   liskTestnet: [
     {
       symbol: "ETH",
@@ -379,6 +422,35 @@ export const TOKEN_CONFIGS = {
       decimals: 6,
       coingeckoId: "usd-coin",
       binanceSymbol: "USDCUSDT",
+    },
+  ],
+  arbitrumSepolia: [
+    {
+      symbol: "ETH",
+      name: "Arbitrum Sepolia ETH",
+      icon: "https://arthuremma2.github.io/img-hosting/ethereum-eth.svg",
+      address: "0x0000000000000000000000000000000000000000",
+      decimals: 18,
+      coingeckoId: "ethereum",
+      binanceSymbol: "ETHUSDT",
+    },
+    {
+      symbol: "USDC",
+      name: "Mock USDC",
+      icon: "https://move-flow.github.io/assets/usd-coin-usdc-logo.svg",
+      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+      decimals: 6,
+      coingeckoId: "usd-coin",
+      binanceSymbol: "USDCUSDT",
+    },
+    {
+      symbol: "ARB",
+      name: "Arbitrum (Testnet)",
+      icon: "https://arthuremma2.github.io/img-hosting/arb44.svg",
+      address: "0x15dd68a7a37d7edBf284b93Bc25d6b286d33fCc3",
+      decimals: 18,
+      coingeckoId: "arbitrum",
+      binanceSymbol: "ARBUSDT",
     },
   ],
 };

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@kwespay/client':
-        specifier: ^0.1.21
-        version: 0.1.21
+        specifier: ^0.1.23
+        version: 0.1.23
       '@walletconnect/ethereum-provider':
         specifier: ^2.17.0
         version: 2.23.9(@types/react@19.2.14)(zod@3.25.76)
@@ -73,8 +73,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kwespay/client@0.1.21':
-    resolution: {integrity: sha512-wCxzBf7uqbKvrCSn+du2YZozaapj5udwtg5nCWITnM9DiXlpDA826xid4ZrRCNAGJeOrrceOVAUi9NunXslkFw==}
+  '@kwespay/client@0.1.23':
+    resolution: {integrity: sha512-xBapKb5nrKB9URXRBh1obxwxTAjwJeuOvevLFRA4gH0XsoiI/P1LsI9jIhRWFi7t6K7uRamqspVPku1mMhBzyA==}
     engines: {node: '>=18'}
 
   '@lit-labs/ssr-dom-shim@1.5.1':
@@ -2291,7 +2291,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kwespay/client@0.1.21': {}
+  '@kwespay/client@0.1.23': {}
 
   '@lit-labs/ssr-dom-shim@1.5.1': {}
 

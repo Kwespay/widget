@@ -1,3 +1,5 @@
+import { formatCryptoAmount } from "../../utils/helpers.js";
+
 function formatUnits(rawBigInt, decimals) {
   const divisor = BigInt(10 ** decimals);
   const whole = rawBigInt / divisor;
@@ -100,7 +102,9 @@ export const QuoteMethods = {
         fiatCurrency: this.config.currency,
       };
 
-      const fmt = (n) => `${formatUnits(n, decimals)} ${sym}`;
+      const fmt = (n) =>
+        formatCryptoAmount(parseFloat(formatUnits(n, decimals)), sym);
+
       const amountBig = BigInt(quote.amountBaseUnits);
       const totalBig = BigInt(quote.totalBaseUnits);
       const feeBig = totalBig - amountBig;

@@ -1,5 +1,6 @@
 export function getStepTemplates(fiatAmount, currency) {
   return `
+    <!-- Step 0: Initialising -->
     <div class="step active" id="kwespay-step0">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
@@ -23,6 +24,7 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
+    <!-- Step 0.5: API key invalid / network error on init -->
     <div class="step" id="kwespay-step0-invalid">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
@@ -41,6 +43,7 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
+    <!-- Step 1: Select Network -->
     <div class="step" id="kwespay-step1">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
@@ -73,6 +76,7 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
+    <!-- Step 2: Select Token -->
     <div class="step" id="kwespay-step2">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
@@ -113,6 +117,7 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
+    <!-- Step 3: Review & Pay -->
     <div class="step" id="kwespay-step3">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
@@ -142,7 +147,6 @@ export function getStepTemplates(fiatAmount, currency) {
             <span id="kwespay-quoteTimerText">—</span>
           </div>
         </div>
-
         <div class="kp-detail-block">
           <div class="kp-detail-row">
             <span class="kp-detail-key">Wallet</span>
@@ -157,7 +161,6 @@ export function getStepTemplates(fiatAmount, currency) {
             <span class="kp-detail-val accent" id="kwespay-summaryToken">—</span>
           </div>
         </div>
-
         <div class="kp-fee-block">
           <div class="kp-fee-header">
             <span class="material-symbols-outlined">receipt_long</span>
@@ -183,16 +186,17 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
-    <!-- Step 4: Processing / Confirming / Success — all in one step, mutating in place -->
+    <!-- Step 4: Processing / Confirming / Success (mutating sub-views) -->
     <div class="step" id="kwespay-step4">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
+          <div class="kp-topbar-dot" id="kwespay-step4-dot"></div>
           <span class="kp-topbar-name" id="kwespay-step4-title">KwesPay Checkout</span>
         </div>
-       
+        
       </div>
 
-      <!-- Sub-view: processing (wallet approval) -->
+      <!-- Sub-view: processing (wallet approval + on-chain) -->
       <div id="kwespay-view-processing" class="loading-container" style="flex:1">
         <div class="spinner-wrapper">
           <div class="spinner-ring"></div>
@@ -223,24 +227,25 @@ export function getStepTemplates(fiatAmount, currency) {
         </div>
         <h2 class="headline">Confirming Payment</h2>
         <p class="body-text" id="kwespay-confirmingText">Waiting for network confirmation.</p>
-        <div class="kp-onchain-badge">
-          <span class="material-symbols-outlined">check</span>
-          Transaction sent on-chain
-        </div>
       </div>
 
-      <!-- Sub-view: success (backend confirmed) -->
+      <!-- Sub-view: success receipt -->
       <div id="kwespay-view-success" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+
+        <!-- Thin green confirmed bar -->
         <div class="kp-confirmed-bar">
           <span class="material-symbols-outlined" style="font-size:13px;color:var(--kp-green)">check_circle</span>
           <span>Payment confirmed on-chain</span>
         </div>
+
+        <!-- Scrollable receipt body -->
         <div class="loading-container" style="flex:1;padding-bottom:0;justify-content:flex-start;padding-top:20px;overflow-y:auto">
           <div class="success-icon">
             <span class="material-symbols-outlined">check_circle</span>
           </div>
           <h2 class="headline">Payment Successful</h2>
           <p class="body-text">Your transaction has been confirmed on-chain.</p>
+
           <div class="tx-details">
             <div class="tx-row">
               <span class="tx-label">Tx hash</span>
@@ -250,6 +255,10 @@ export function getStepTemplates(fiatAmount, currency) {
                   <span class="material-symbols-outlined">open_in_new</span>
                 </a>
               </div>
+            </div>
+            <div class="tx-row">
+              <span class="tx-label">Reference</span>
+              <span class="tx-value" id="kwespay-txRef">—</span>
             </div>
             <div class="tx-row">
               <span class="tx-label">Amount paid</span>
@@ -263,11 +272,23 @@ export function getStepTemplates(fiatAmount, currency) {
               <span class="tx-label">Network</span>
               <span class="tx-value" id="kwespay-txNetwork">—</span>
             </div>
+            <div class="tx-row">
+              <span class="tx-label">Time</span>
+              <span class="tx-value" id="kwespay-txTime">—</span>
+            </div>
           </div>
         </div>
-        <div class="bottom-action">
-          <button class="action-btn" id="kwespay-closeSuccessBtn">Done</button>
+
+        <!-- Countdown + Done button -->
+        <div class="bottom-action" style="padding-top:10px">
+          <!-- Countdown bar -->
+          <div class="kp-countdown-track">
+            <div class="kp-countdown-bar" id="kwespay-receiptCountdownBar"></div>
+          </div>
+          <p class="kp-countdown-label" id="kwespay-receiptCountdown">Closing in 10s</p>
+          <button class="action-btn" id="kwespay-closeSuccessBtn" style="margin-top:8px">Done</button>
         </div>
+
         <div class="kp-footer">
           <span class="material-symbols-outlined kp-footer-lock" style="font-size:12px">lock</span>
           <span class="kp-footer-text">Secured by <span>KwesPay</span> &middot; On-chain verified</span>
@@ -275,11 +296,11 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
     </div>
 
-    <!-- Error step (was step6, renumbered step5 internally) -->
+    <!-- Step 5: Error / Failed -->
     <div class="step" id="kwespay-step5">
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
-          <div class="kp-topbar-dot" style="background:var(--kp-red);box-shadow:none;animation:none"></div>
+          <div class="kp-topbar-dot" style="background:var(--kp-red);box-shadow:0 0 8px rgba(244,63,94,0.35);animation:none"></div>
           <span class="kp-topbar-name">Payment Failed</span>
         </div>
       </div>
@@ -289,6 +310,12 @@ export function getStepTemplates(fiatAmount, currency) {
         </div>
         <h2 class="headline" id="kwespay-errorTitle">Something went wrong</h2>
         <p class="body-text" id="kwespay-errorMessage">An error occurred while processing your payment.</p>
+
+        <!-- Hint strip — gives context without overwhelming the user -->
+        <div class="kp-error-hint">
+          <span class="material-symbols-outlined" style="font-size:14px;color:var(--kp-muted)">info</span>
+          <span>Your funds have not been charged. You can retry safely.</span>
+        </div>
       </div>
       <div class="bottom-action">
         <button class="action-btn" id="kwespay-retryPayment">Try Again</button>

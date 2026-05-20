@@ -4,8 +4,11 @@ import {
   truncateHash,
   getErrorType,
   getErrorMessage,
+  formatCryptoAmount,
 } from "../../utils/helpers.js";
 import { formatUnits } from "./widgetQuote.js";
+
+const RECEIPT_DWELL_MS = 10_000;
 
 export const PaymentMethods = {
   async _handlePaymentProcessing() {
@@ -35,16 +38,28 @@ export const PaymentMethods = {
       const provider = this.walletService.getProvider();
       const targetChainId = this.state.selectedChainId;
 
-      if (!provider) throw new Error("No wallet provider");
-
-      const alive = await this.walletService.isSessionAlive();
-      if (!alive) {
-        await this.walletService.disconnect();
-        const err = new Error(
-          "Your wallet session expired. Please reconnect your wallet."
+      if (!provider) {
+        throw Object.assign(
+          new Error(
+            "No wallet provider available. Please reconnect your wallet."
+          ),
+          {
+            code: "NO_PROVIDER",
+          }
         );
-        err.code = "SESSION_EXPIRED";
-        throw err;
+      }
+
+      const alive = await this.walletService
+        .isSessionAlive()
+        .catch(() => false);
+      if (!alive) {
+        await this.walletService.disconnect().catch(() => {});
+        throw Object.assign(
+          new Error(
+            "Your wallet session expired. Please reconnect your wallet."
+          ),
+          { code: "SESSION_EXPIRED" }
+        );
       }
 
       if (isMobile) {
@@ -56,7 +71,17 @@ export const PaymentMethods = {
       if (strictMobile) {
         await this._assertMobileChain(provider, targetChainId);
       } else {
-        const rawChain = await provider.request({ method: "eth_chainId" });
+        let rawChain;
+        try {
+          rawChain = await provider.request({ method: "eth_chainId" });
+        } catch {
+          throw Object.assign(
+            new Error(
+              "Could not read the current network from your wallet. Please try again."
+            ),
+            { code: "NETWORK_ERROR" }
+          );
+        }
         const currentChainId = parseInt(rawChain, 16);
         if (currentChainId !== targetChainId) {
           setStatus(
@@ -87,18 +112,35 @@ export const PaymentMethods = {
         );
       }
 
-      const receipt = await this.paymentService.createPayment({
-        payload: this.state.currentPayload,
-        walletProvider: provider,
-        onStatusUpdate: setStatus,
-      });
+      let receipt;
+      try {
+        receipt = await this.paymentService.createPayment({
+          payload: this.state.currentPayload,
+          walletProvider: provider,
+          onStatusUpdate: setStatus,
+        });
+      } catch (payErr) {
+        const msg =
+          payErr?.message ?? "Payment submission failed. Please try again.";
+        throw Object.assign(new Error(msg), {
+          code: payErr?.code ?? "CONTRACT_ERROR",
+          original: payErr,
+        });
+      }
+
+      if (!receipt?.hash) {
+        throw Object.assign(
+          new Error(
+            "Transaction was submitted but no hash was returned. Check your wallet for status."
+          ),
+          { code: "MISSING_HASH" }
+        );
+      }
 
       document
         .getElementById("kwespay-mobileTransactionInstruction")
         ?.style.setProperty("display", "none");
 
-      // On-chain tx is done — show confirming state and fire the legacy
-      // paymentSuccess event so integrators that listen to it can update their UI.
       this._setProcessingView("confirming");
 
       const onChainPayload = {
@@ -115,35 +157,53 @@ export const PaymentMethods = {
       dispatchWidgetEvent("paymentSuccess", onChainPayload);
       this.config.onPaymentSuccess?.(onChainPayload);
 
-      // Wait for backend confirmation — always resolves, never throws outward
       const confirmed = await this._awaitBackendConfirmation(receipt);
 
-      // Populate success sub-view
       const decimals = this.state.selectedTokenConfig?.decimals ?? 18;
       const sym = this.state.selectedToken;
       const payload = this.state.currentPayload;
       const totalBig = BigInt(payload.totalBaseUnits);
-      const cryptoDisplay = `${formatUnits(totalBig, decimals)} ${sym}`;
-
-      document.getElementById("kwespay-txHash").textContent = truncateHash(
-        receipt.hash
+      const cryptoDisplay = formatCryptoAmount(
+        parseFloat(formatUnits(totalBig, decimals)),
+        sym
       );
-      document.getElementById(
-        "kwespay-txFiatAmount"
-      ).textContent = `${this.config.amount} ${this.config.currency}`;
-      document.getElementById("kwespay-txCryptoAmount").textContent =
-        cryptoDisplay;
-      document.getElementById("kwespay-txNetwork").textContent =
-        this.state.selectedNetworkName;
-      document.getElementById("kwespay-explorerLink").href =
-        NETWORK_CONFIGS[this.state.selectedNetwork].explorer + receipt.hash;
+      const now = new Date();
+      const timeString = now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const dateString = now.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+      const setEl = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      setEl("kwespay-txHash", truncateHash(receipt.hash));
+      setEl(
+        "kwespay-txFiatAmount",
+        `${this.config.amount} ${this.config.currency}`
+      );
+      setEl("kwespay-txCryptoAmount", cryptoDisplay);
+      setEl("kwespay-txNetwork", this.state.selectedNetworkName);
+      setEl("kwespay-txRef", receipt.transactionReference ?? "—");
+      setEl("kwespay-txTime", `${dateString} · ${timeString}`);
+
+      const explorerLink = document.getElementById("kwespay-explorerLink");
+      if (explorerLink) {
+        explorerLink.href =
+          (NETWORK_CONFIGS[this.state.selectedNetwork]?.explorer ?? "") +
+          receipt.txHash;
+      }
 
       this._setProcessingView("success");
+      this._startReceiptCountdown(RECEIPT_DWELL_MS);
 
-      // transactionStatus is "completed" if backend confirmed, "unconfirmed" on timeout.
-      // Both mean the on-chain tx is done — treat both as success.
       const finalStatus = confirmed?.transactionStatus ?? "completed";
-
       const finalPayload = {
         transactionReference: receipt.transactionReference,
         paymentIdBytes32: receipt.paymentIdBytes32,
@@ -155,9 +215,7 @@ export const PaymentMethods = {
         network: this.state.selectedNetwork,
       };
 
-      // _finalisePayment fires the DOM event + callback (backward compat),
-      // resolves the open() Promise, and closes the widget.
-      this._finalisePayment(finalPayload);
+      this._finalisePayment(finalPayload, false);
     } catch (error) {
       document
         .getElementById("kwespay-mobileTransactionInstruction")
@@ -167,23 +225,47 @@ export const PaymentMethods = {
       let title = "Payment Failed";
       let message = getErrorMessage(error, { token: this.state.selectedToken });
 
-      if (error.code === "SESSION_EXPIRED") {
-        title = "Session Expired";
-        message = error.message;
-      } else if (error.code === "WRONG_NETWORK") {
-        title = "Wrong Network";
-        message = error.message;
-      } else if (errorType === "USER_REJECTED") {
-        title = "Transaction Cancelled";
-        message = "You rejected the transaction in your wallet.";
-      } else if (errorType === "INSUFFICIENT_BALANCE") {
-        title = "Insufficient Balance";
+      switch (error.code) {
+        case "SESSION_EXPIRED":
+          title = "Session Expired";
+          message = error.message;
+          break;
+        case "NO_PROVIDER":
+          title = "Wallet Disconnected";
+          message = error.message;
+          break;
+        case "NETWORK_ERROR":
+          title = "Network Error";
+          message = error.message;
+          break;
+        case "WRONG_NETWORK":
+          title = "Wrong Network";
+          message = error.message;
+          break;
+        case "MISSING_HASH":
+          title = "Unknown Transaction Status";
+          message = error.message;
+          break;
+        default:
+          if (errorType === "USER_REJECTED") {
+            title = "Transaction Cancelled";
+            message = "You rejected the transaction in your wallet.";
+          } else if (errorType === "INSUFFICIENT_BALANCE") {
+            title = "Insufficient Balance";
+          } else if (!message) {
+            message =
+              "An unexpected error occurred. Please try again or contact support.";
+          }
       }
 
-      this._showError(title, message);
+      console.error("[KwesPayWidget] Payment error:", {
+        title,
+        message,
+        code: error.code,
+        error,
+      });
 
-      // _failPayment fires the DOM event + callback (backward compat) and
-      // rejects the open() Promise.
+      this._showError(title, message);
       this._failPayment(message, errorType);
     }
   },
@@ -191,9 +273,8 @@ export const PaymentMethods = {
   _setProcessingView(view) {
     ["processing", "confirming", "success"].forEach((v) => {
       const el = document.getElementById(`kwespay-view-${v}`);
-      if (el)
-        el.style.display =
-          v === view ? (v === "success" ? "flex" : "") : "none";
+      if (!el) return;
+      el.style.display = v === view ? (v === "success" ? "flex" : "") : "none";
     });
 
     const dot = document.getElementById("kwespay-step4-dot");
@@ -219,9 +300,47 @@ export const PaymentMethods = {
     }
   },
 
-  // Polls backend for confirmation. Always resolves (never throws outward).
-  // On timeout, fires the legacy paymentUnconfirmed DOM event so integrators
-  // that need it can reconcile async on their backend.
+  _startReceiptCountdown(totalMs) {
+    this._stopReceiptCountdown();
+
+    const totalSec = Math.round(totalMs / 1000);
+    let remaining = totalSec;
+
+    const countdownEl = document.getElementById("kwespay-receiptCountdown");
+    const barEl = document.getElementById("kwespay-receiptCountdownBar");
+
+    const update = () => {
+      if (countdownEl) {
+        countdownEl.textContent =
+          remaining > 0 ? `Closing in ${remaining}s` : "Closing…";
+      }
+      if (barEl) {
+        const pct = (remaining / totalSec) * 100;
+        barEl.style.width = `${pct}%`;
+        barEl.style.background =
+          remaining <= 3 ? "var(--kp-green)" : "var(--kp-accent)";
+      }
+    };
+
+    update();
+
+    this._receiptCountdownInterval = setInterval(() => {
+      remaining -= 1;
+      update();
+      if (remaining <= 0) {
+        this._stopReceiptCountdown();
+        this.close();
+      }
+    }, 1000);
+  },
+
+  _stopReceiptCountdown() {
+    if (this._receiptCountdownInterval) {
+      clearInterval(this._receiptCountdownInterval);
+      this._receiptCountdownInterval = null;
+    }
+  },
+
   _awaitBackendConfirmation(receipt) {
     return this.paymentService
       .pollTransactionStatus(receipt.transactionReference, {
@@ -233,8 +352,6 @@ export const PaymentMethods = {
         },
       })
       .catch((err) => {
-        // Polling timed out — on-chain tx is done so proceed to success.
-        // Fire paymentUnconfirmed for integrators that want async reconciliation.
         dispatchWidgetEvent("paymentUnconfirmed", {
           transactionReference: receipt.transactionReference,
           transactionHash: receipt.hash,
@@ -258,20 +375,19 @@ export const PaymentMethods = {
       try {
         const raw = await provider.request({ method: "eth_chainId" });
         currentChainId = parseInt(raw, 16);
-      } catch {
-        // RPC failed, will retry
-      }
+      } catch {}
 
       if (currentChainId === targetChainId) return;
       if (attempt < MAX_ATTEMPTS)
         await new Promise((r) => setTimeout(r, DELAY_MS));
     }
 
-    const err = new Error(
-      `Please switch to ${this.state.selectedNetworkName} in your wallet and try again.`
+    throw Object.assign(
+      new Error(
+        `Please switch to ${this.state.selectedNetworkName} in your wallet and try again.`
+      ),
+      { code: "WRONG_NETWORK" }
     );
-    err.code = "WRONG_NETWORK";
-    throw err;
   },
 
   async _switchNetworkSafe(
@@ -306,9 +422,7 @@ export const PaymentMethods = {
         await provider.request({ method: "eth_chainId" })
       );
       if (currentHex && currentHex === targetHex) return;
-    } catch {
-      // Can't read current chain — proceed to switch anyway
-    }
+    } catch {}
 
     try {
       await this.walletService.switchNetwork(
@@ -333,13 +447,12 @@ export const PaymentMethods = {
           await provider.request({ method: "eth_chainId" })
         );
         if (currentHex && currentHex === targetHex) return;
-      } catch {
-        // Poll error — keep trying
-      }
+      } catch {}
     }
 
     throw new Error(
-      `Could not confirm network switch to ${networkName} after 15s. Please switch manually in your wallet and try again.`
+      `Could not confirm network switch to ${networkName} after 15s. ` +
+        `Please switch manually in your wallet and try again.`
     );
   },
 };

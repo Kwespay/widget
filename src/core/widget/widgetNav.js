@@ -15,8 +15,11 @@ export const NavMethods = {
       targetStep = document.getElementById(`kwespay-step-${stepNumber}`);
     else targetStep = document.getElementById(`kwespay-step${stepNumber}`);
 
-    if (targetStep) targetStep.classList.add("active");
-    else console.warn(`[KwesPayWidget] Step not found: ${stepNumber}`);
+    if (targetStep) {
+      targetStep.classList.add("active");
+    } else {
+      console.warn(`[KwesPayWidget] Step not found: ${stepNumber}`);
+    }
   },
 
   _removeCustomStep(id) {
@@ -26,13 +29,16 @@ export const NavMethods = {
   _showError(title, message) {
     const titleEl = document.getElementById("kwespay-errorTitle");
     const msgEl = document.getElementById("kwespay-errorMessage");
-    if (titleEl) titleEl.textContent = title;
-    if (msgEl) msgEl.textContent = message;
-    this._goToStep(6);
+    if (titleEl) titleEl.textContent = title ?? "Something went wrong";
+    if (msgEl)
+      msgEl.textContent =
+        message ?? "An unexpected error occurred. Please try again.";
+    this._goToStep(5);
   },
 
   _reset() {
     this._clearQuoteTimer();
+    this._stopReceiptCountdown();
     this._removeCustomStep("kwespay-step-wallet-picker");
     this._removeCustomStep("kwespay-step-wc");
     this.state.selectedNetwork = null;
