@@ -1,7 +1,7 @@
 {
   "name": "@kwespay/widget",
   "type": "module",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "KwesPay Crypto Payment Widget - Accept crypto payments in 3 lines of code",
   "main": "dist/kwespay-widget.min.js",
   "module": "dist/esm/index.js",
