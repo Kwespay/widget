@@ -197,7 +197,7 @@ export const PaymentMethods = {
       if (explorerLink) {
         explorerLink.href =
           (NETWORK_CONFIGS[this.state.selectedNetwork]?.explorer ?? "") +
-          receipt.txHash;
+          receipt.hash;
       }
 
       this._setProcessingView("success");
