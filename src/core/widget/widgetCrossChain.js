@@ -5,7 +5,14 @@ import { ensureBuffer } from "../../utils/nodeGlobals.js";
 
 const STELLAR_PUBLIC = "Public Global Stellar Network ; September 2015";
 
-const ORIGIN_LABELS = ["XLM", "BTC"];
+const OPTIONS_TTL_MS = 45_000;
+const ENTRY_LOGOS = [
+  { url: "https://coin-images.coingecko.com/coins/images/325/small/Tether.png", fallback: "U" },
+  { url: "https://coin-images.coingecko.com/coins/images/279/small/ethereum.png", fallback: "E" },
+  { url: "https://coin-images.coingecko.com/coins/images/4128/small/solana.png", fallback: "S" },
+];
+const POPULAR_SYMBOLS = ["USDT", "USDC", "ETH", "BTC", "SOL", "BNB", "XRP", "TRX", "DOGE", "TON", "SUI", "XLM", "NEAR", "AVAX", "POL", "ADA", "LTC", "BCH"];
+const POPULAR_CHAINS = ["Ethereum", "Tron", "Solana", "Base", "Arbitrum", "BNB Chain", "Polygon", "Optimism"];
 const POLL_MS = 5000;
 const STABLE_PREFERENCE = ["USDC", "USDT"];
 const REFUND_PATTERNS = {
@@ -19,14 +26,72 @@ const PROGRESS = [
   { key: "paid", label: "Paid" },
 ];
 
-function originLogo(origin, catalog) {
-  const stellar = Object.values(catalog ?? {}).find((c) => c.network.ecosystem === "stellar" && c.network.type === "mainnet")
-    ?? Object.values(catalog ?? {}).find((c) => c.network.ecosystem === "stellar");
-  const url = origin === "XLM" ? safeImageUrl(stellar?.tokens?.find((t) => t.symbol === "XLM")?.icon ?? stellar?.network?.logo) : "";
-  if (url) return `<img src="${url}" alt="${escapeHtml(origin)}" data-kp-fallback="${origin.charAt(0)}" />`;
-  const marks = { BTC: "\u20bf", XLM: "\u2726" };
-  const mark = marks[origin] ?? origin.charAt(0);
-  return `<span class="kp-cc-mark kp-cc-mark-${escapeHtml(origin.toLowerCase())}">${escapeHtml(mark)}</span>`;
+function ccSymbol(asset) {
+  return String(asset ?? "").split(":")[0];
+}
+
+function ccLabel(option) {
+  return option.originAsset.includes(":") ? option.name : option.originAsset;
+}
+
+function formatEstimate(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return String(value ?? "");
+  return new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 }).format(amount);
+}
+
+function popularity(list, value) {
+  const index = list.indexOf(value);
+  return index === -1 ? list.length : index;
+}
+
+function buildSearchEntries(options) {
+  return options
+    .map((option) => {
+      const symbol = ccSymbol(ccLabel(option)).toLowerCase().replace(/^\$/, "");
+      return {
+        option,
+        label: ccLabel(option),
+        symbol,
+        name: String(option.name ?? "").toLowerCase(),
+        chain: String(option.chainName ?? "").toLowerCase(),
+        chainKey: String(option.chain ?? "").toLowerCase(),
+        order: [
+          option.available ? 0 : 1,
+          popularity(POPULAR_SYMBOLS, symbol.toUpperCase()),
+          String(option.chain ?? "").toLowerCase() === symbol ? 0 : 1,
+          popularity(POPULAR_CHAINS, option.chainName),
+          symbol,
+        ],
+      };
+    })
+    .sort((a, b) => {
+      for (let i = 0; i < a.order.length; i += 1) {
+        if (a.order[i] < b.order[i]) return -1;
+        if (a.order[i] > b.order[i]) return 1;
+      }
+      return 0;
+    });
+}
+
+function matchScore(entry, terms) {
+  let total = 0;
+  for (const term of terms) {
+    let score = -1;
+    if (entry.symbol === term) score = 0;
+    else if (entry.symbol.startsWith(term)) score = 1;
+    else if (entry.chain === term || entry.chainKey === term) score = 2;
+    else if (entry.chain.startsWith(term)) score = 3;
+    else if (entry.name.startsWith(term)) score = 4;
+    else if (entry.symbol.includes(term) || entry.name.includes(term) || entry.chain.includes(term)) score = 5;
+    if (score === -1) return -1;
+    total += score;
+  }
+  return total;
+}
+
+function searchTerms(value) {
+  return value.trim().toLowerCase().replace(/\$/g, "").split(/\s+/).filter((term) => term && term !== "on");
 }
 
 function formatEta(seconds) {
@@ -36,7 +101,7 @@ function formatEta(seconds) {
 }
 
 function paymentUri(route) {
-  if (route.originChain === "stellar") {
+  if (route.originAsset === "XLM") {
     const params = new URLSearchParams({ destination: route.depositAddress, amount: route.amountInFormatted });
     if (route.depositMemo) {
       params.set("memo", route.depositMemo);
@@ -44,7 +109,7 @@ function paymentUri(route) {
     }
     return `web+stellar:pay?${params.toString()}`;
   }
-  if (route.originChain === "btc") return `bitcoin:${route.depositAddress}?amount=${route.amountInFormatted}`;
+  if (route.originAsset === "BTC") return `bitcoin:${route.depositAddress}?amount=${route.amountInFormatted}`;
   return route.depositAddress;
 }
 
@@ -94,7 +159,7 @@ export const CrossChainMethods = {
     for (const network of offered) {
       if (!enabled.has(network)) continue;
       const accepted = this._resolveAcceptedTokensForNetwork(network);
-      const token = STABLE_PREFERENCE.find((t) => accepted.includes(t));
+      const token = STABLE_PREFERENCE.find((t) => accepted.includes(t)) ?? accepted[0];
       if (token) return { network, token, config: this._networkConfig(network) };
     }
     return null;
@@ -104,7 +169,7 @@ export const CrossChainMethods = {
     document.getElementById("kwespay-cc-section")?.remove();
     const destination = this._crossChainDestination();
     const hint = document.getElementById("kwespay-step1-hint");
-    if (hint) hint.textContent = destination ? `Select a network, or pay with ${ORIGIN_LABELS.join(" or ")}` : "Select a network to continue";
+    if (hint) hint.textContent = destination ? "Choose a network, or pay with what you have" : "Select a network to continue";
     if (!destination) return;
 
     const mainnetList = document.getElementById("kwespay-mainnetList");
@@ -113,20 +178,25 @@ export const CrossChainMethods = {
     section.id = "kwespay-cc-section";
     section.className = "kp-cc-section";
     section.innerHTML = `
-      <div class="kp-section-divider">Pay from another chain</div>
+      <div class="kp-section-divider">Don't hold these tokens?</div>
       <button type="button" class="list-item kp-cc-entry" id="kwespay-cc-entry">
-        <div class="kp-cc-logos">
-          ${ORIGIN_LABELS.map((o) => `<span class="kp-cc-logo">${originLogo(o, this.state.catalog)}</span>`).join("")}
-        </div>
         <div class="item-info">
-          <div class="item-name-row"><p class="item-name">Pay with ${ORIGIN_LABELS.join(" or ")}</p></div>
-          <p class="item-desc">Send from any wallet or exchange. No wallet connection needed.</p>
+          <div class="item-name-row"><p class="item-name">Pay with what you have</p></div>
+          <p class="item-desc">Any coin, any chain. We handle the conversion.</p>
+        </div>
+        <div class="kp-cc-stack" aria-hidden="true">
+          ${ENTRY_LOGOS.map((logo) => `<img src="${safeImageUrl(logo.url)}" alt="" width="26" height="26" data-kp-fallback="${logo.fallback}" />`).join("")}
         </div>
         ${icon("chevron_right", "item-chevron")}
       </button>
     `;
     mainnetList.insertAdjacentElement("afterend", section);
-    section.querySelector("#kwespay-cc-entry").addEventListener("click", () => this._openCrossChainAssets());
+    const entry = section.querySelector("#kwespay-cc-entry");
+    const warm = () => this._ccLoadOptions(destination).catch(() => {});
+    entry.addEventListener("pointerenter", warm, { once: true });
+    entry.addEventListener("touchstart", warm, { once: true, passive: true });
+    entry.addEventListener("focus", warm, { once: true });
+    entry.addEventListener("click", () => this._openCrossChainAssets());
   },
 
   _ccRemoveSteps() {
@@ -139,7 +209,7 @@ export const CrossChainMethods = {
     this._ccTimer = null;
   },
 
-  _ccStep(id, title, body, { back = null, footer = "" } = {}) {
+  _ccStep(id, title, body, { back = null, footer = "", header = "" } = {}) {
     this._removeCustomStep(id);
     const container = document.getElementById("kwespay-widget-container");
     const step = document.createElement("div");
@@ -156,6 +226,7 @@ export const CrossChainMethods = {
         <div class="kp-amount-label">Total due</div>
         <div class="kp-amount-value">${escapeHtml(this._displayAmount)} ${escapeHtml(this.config.currency)}</div>
       </div>
+      ${header}
       <div class="content-scroll">${body}</div>
       ${footer}
     `;
@@ -165,25 +236,11 @@ export const CrossChainMethods = {
     return step;
   },
 
-  async _openCrossChainAssets() {
-    const destination = this._crossChainDestination();
-    if (!destination) return;
-    this.state.ccDestination = destination;
-    const receiveName = destination.config?.name ?? destination.network;
-
-    const step = this._ccStep(
-      "kwespay-step-cc-assets",
-      "Pay from another chain",
-      `
-        <p class="section-hint">Choose what you'll pay with. The merchant receives ${escapeHtml(destination.token)} on ${escapeHtml(receiveName)}.</p>
-        <div class="item-list" id="kwespay-cc-options">
-          <div class="kp-cc-loading">Getting live prices…</div>
-        </div>
-      `,
-      { back: () => { this._ccRemoveSteps(); this._goToStep(1); } }
-    );
-
-    try {
+  _ccLoadOptions(destination) {
+    const key = [destination.network, destination.token, this.config.amount, this.config.currency].join("|");
+    const cached = this._ccOptionsCache;
+    if (cached && cached.key === key && Date.now() - cached.at < OPTIONS_TTL_MS) return cached.promise;
+    const promise = (async () => {
       const quote = await this.paymentService.getQuote({
         vendorId: this.config.vendorId,
         cryptoCurrency: destination.token,
@@ -192,54 +249,245 @@ export const CrossChainMethods = {
         network: destination.network,
         orderId: this.config.orderId,
       });
-      this.state.ccQuote = quote;
       const { options } = await this.paymentService.getCrossChainOptions({ quote });
+      return { quote, options };
+    })();
+    const entry = { key, at: Date.now(), promise };
+    this._ccOptionsCache = entry;
+    promise.catch(() => {
+      if (this._ccOptionsCache === entry) this._ccOptionsCache = null;
+    });
+    return promise;
+  },
+
+  async _openCrossChainAssets() {
+    const destination = this._crossChainDestination();
+    if (!destination) return;
+    this.state.ccDestination = destination;
+
+    const step = this._ccStep(
+      "kwespay-step-cc-assets",
+      "Pay with what you have",
+      `
+        <div class="item-list kp-cc-token-list" id="kwespay-cc-options" role="listbox" aria-label="Tokens" aria-busy="true">
+          ${'<div class="kp-cc-skeleton"></div>'.repeat(7)}
+        </div>
+        <p class="kp-cc-results" id="kwespay-cc-results" aria-live="polite"></p>
+      `,
+      {
+        back: () => { this._ccRemoveSteps(); this._goToStep(1); },
+        header: `
+          <div class="kp-cc-search">
+            <div class="kp-cc-search-box">
+              ${icon("search", "kp-cc-search-icon")}
+              <input id="kwespay-cc-search" class="kp-cc-search-input" type="text" inputmode="search" enterkeyhint="search"
+                placeholder="Search any coin or chain" aria-label="Search any coin or chain" role="combobox" aria-expanded="true"
+                aria-controls="kwespay-cc-options" aria-autocomplete="list" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              <button type="button" class="kp-cc-search-clear" id="kwespay-cc-search-clear" hidden>Clear</button>
+            </div>
+          </div>
+        `,
+      }
+    );
+
+    if (window.matchMedia?.("(hover: hover) and (pointer: fine)").matches) {
+      step.querySelector("#kwespay-cc-search")?.focus({ preventScroll: true });
+    }
+    await this._ccFillOptions(step, destination);
+  },
+
+  async _ccFillOptions(step, destination) {
+    const list = step.querySelector("#kwespay-cc-options");
+    try {
+      const { quote, options } = await this._ccLoadOptions(destination);
+      if (!step.isConnected) return;
+      this.state.ccQuote = quote;
+      list?.removeAttribute("aria-busy");
       this._renderCrossChainOptions(step, options);
     } catch (err) {
-      const list = step.querySelector("#kwespay-cc-options");
-      if (list) list.innerHTML = `<div class="kp-cc-loading">${escapeHtml(err?.message ?? "Prices are unavailable right now. Please try again.")}</div>`;
+      if (!step.isConnected || !list) return;
+      list.removeAttribute("aria-busy");
+      list.innerHTML = `
+        <div class="kp-cc-loading">
+          <p>${escapeHtml(err?.message ?? "Prices are unavailable right now.")}</p>
+          <button type="button" class="kp-cc-copy" id="kwespay-cc-retry">Try again</button>
+        </div>
+      `;
+      list.querySelector("#kwespay-cc-retry")?.addEventListener("click", () => {
+        list.setAttribute("aria-busy", "true");
+        list.innerHTML = '<div class="kp-cc-skeleton"></div>'.repeat(7);
+        this._ccFillOptions(step, destination);
+      });
     }
+  },
+
+  _ccOptionRow(entry, index) {
+    const { option, label } = entry;
+    const row = document.createElement("button");
+    row.type = "button";
+    row.id = `kwespay-cc-option-${index}`;
+    row.setAttribute("role", "option");
+    row.setAttribute("aria-selected", "false");
+    row.tabIndex = -1;
+    row.dataset.index = String(index);
+    row.className = "list-item kp-cc-option kp-cc-token" + (option.available ? "" : " is-disabled");
+    row.disabled = !option.available;
+    const detail = option.available
+      ? option.chainName
+      : option.code === "AMOUNT_BELOW_MINIMUM"
+        ? `${option.chainName} · from $${option.minimumUsd}`
+        : `${option.chainName} · unavailable`;
+    const symbol = ccSymbol(label).replace(/^\$/, "");
+    const logoUrl = safeImageUrl(option.logoUrl);
+    const chainLogoUrl = safeImageUrl(option.chainLogoUrl);
+    row.innerHTML = `
+      <div class="kp-cc-mark" aria-hidden="true">
+        ${logoUrl
+          ? `<img class="kp-cc-coin" src="${logoUrl}" alt="" width="36" height="36" loading="lazy" decoding="async" data-kp-fallback="${escapeHtml(symbol.charAt(0).toUpperCase())}" />`
+          : `<span class="kp-logo-fallback">${escapeHtml(symbol.charAt(0).toUpperCase())}</span>`}
+        ${chainLogoUrl ? `<img class="kp-cc-chain" src="${chainLogoUrl}" alt="" width="16" height="16" loading="lazy" decoding="async" />` : ""}
+      </div>
+      <div class="item-info">
+        <p class="item-name">${escapeHtml(label)}</p>
+        <p class="item-desc">${escapeHtml(detail)}</p>
+      </div>
+      ${option.available ? `<div class="kp-cc-price">${escapeHtml(formatEstimate(option.amountInFormatted))} ${escapeHtml(ccSymbol(label))}</div>` : ""}
+    `;
+    return row;
+  },
+
+  _ccSelectOption(option) {
+    if (option.originAsset === "XLM") this._openCrossChainMethod(option);
+    else this._openCrossChainRefund(option);
   },
 
   _renderCrossChainOptions(step, options) {
     const list = step.querySelector("#kwespay-cc-options");
-    if (!list) return;
-    list.innerHTML = "";
+    const input = step.querySelector("#kwespay-cc-search");
+    const clear = step.querySelector("#kwespay-cc-search-clear");
+    const results = step.querySelector("#kwespay-cc-results");
+    const scroller = step.querySelector(".content-scroll");
+    if (!list || !input) return;
     if (!options.length) {
-      list.innerHTML = `<div class="kp-cc-loading">No other assets are available for this payment.</div>`;
+      list.innerHTML = `<div class="kp-cc-loading">Paying from another chain isn't available for this payment.</div>`;
       return;
     }
-    options.forEach((option) => {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "list-item kp-cc-option" + (option.available ? "" : " is-disabled");
-      item.disabled = !option.available;
-      const detail = option.available
-        ? [option.chainName, formatEta(option.timeEstimateSeconds)].filter(Boolean).join(" · ")
-        : option.code === "AMOUNT_BELOW_MINIMUM"
-          ? `Available for payments from $${option.minimumUsd}`
-          : option.reason ?? "Unavailable right now";
-      item.innerHTML = `
-        <div class="item-icon">${originLogo(option.originAsset, this.state.catalog)}</div>
-        <div class="item-info">
-          <div class="item-name-row"><p class="item-name">${escapeHtml(option.name)}</p></div>
-          <p class="item-desc">${escapeHtml(detail)}</p>
-        </div>
-        ${option.available ? `<div class="kp-cc-price">${escapeHtml(option.amountInFormatted)} ${escapeHtml(option.originAsset)}</div>` : ""}
-      `;
-      if (option.available) item.addEventListener("click", () => (option.chain === "stellar" ? this._openCrossChainMethod(option) : this._openCrossChainRefund(option)));
-      list.appendChild(item);
+
+    const entries = buildSearchEntries(options);
+    entries.forEach((entry, index) => {
+      entry.el = this._ccOptionRow(entry, index);
     });
+    const empty = document.createElement("div");
+    empty.className = "kp-cc-loading";
+
+    let visible = entries;
+    let active = -1;
+    let frame = 0;
+
+    const setActive = (next, reveal = true) => {
+      if (visible[active]?.el) {
+        visible[active].el.classList.remove("is-active");
+        visible[active].el.setAttribute("aria-selected", "false");
+      }
+      active = next;
+      const target = visible[active]?.el;
+      if (!target) {
+        input.removeAttribute("aria-activedescendant");
+        return;
+      }
+      target.classList.add("is-active");
+      target.setAttribute("aria-selected", "true");
+      input.setAttribute("aria-activedescendant", target.id);
+      if (reveal) target.scrollIntoView({ block: "nearest" });
+    };
+
+    const apply = () => {
+      frame = 0;
+      const value = input.value;
+      const terms = searchTerms(value);
+      visible = terms.length
+        ? entries
+            .map((entry, index) => ({ entry, index, score: matchScore(entry, terms) }))
+            .filter((match) => match.score !== -1)
+            .sort((a, b) => Number(a.entry.option.available === false) - Number(b.entry.option.available === false) || a.score - b.score || a.index - b.index)
+            .map((match) => match.entry)
+        : entries;
+      entries.forEach((entry) => {
+        entry.el.classList.remove("is-active");
+        entry.el.setAttribute("aria-selected", "false");
+      });
+      active = -1;
+      input.removeAttribute("aria-activedescendant");
+      if (visible.length) {
+        list.replaceChildren(...visible.map((entry) => entry.el));
+      } else {
+        empty.textContent = `Nothing found for "${value.trim()}". Try a coin or chain name.`;
+        list.replaceChildren(empty);
+      }
+      if (scroller) scroller.scrollTop = 0;
+      if (clear) clear.hidden = !value;
+      if (results) results.textContent = visible.length === 1 ? "1 token" : `${visible.length} tokens`;
+      if (terms.length && visible[0]?.option.available) setActive(0, false);
+    };
+
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(apply);
+    };
+
+    const move = (direction) => {
+      if (!visible.length) return;
+      let next = active;
+      for (let i = 0; i < visible.length; i += 1) {
+        next = next + direction;
+        if (next < 0) next = visible.length - 1;
+        if (next >= visible.length) next = 0;
+        if (visible[next].option.available) {
+          setActive(next);
+          return;
+        }
+      }
+    };
+
+    input.addEventListener("input", schedule);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        move(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        move(-1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const chosen = visible[active];
+        if (chosen?.option.available) this._ccSelectOption(chosen.option);
+      } else if (event.key === "Escape" && input.value) {
+        event.preventDefault();
+        event.stopPropagation();
+        input.value = "";
+        apply();
+      }
+    });
+    clear?.addEventListener("click", () => {
+      input.value = "";
+      apply();
+      input.focus({ preventScroll: true });
+    });
+    list.addEventListener("click", (event) => {
+      const row = event.target.closest("[data-index]");
+      if (!row || row.disabled) return;
+      this._ccSelectOption(entries[Number(row.dataset.index)].option);
+    });
+    apply();
   },
 
   _openCrossChainMethod(option) {
     const step = this._ccStep(
       "kwespay-step-cc-method",
-      `Pay with ${option.originAsset}`,
+      `Pay with ${ccLabel(option)}`,
       `
         <div class="kp-cc-summary">
           <span>You'll send about</span>
-          <strong>${escapeHtml(option.amountInFormatted)} ${escapeHtml(option.originAsset)}</strong>
+          <strong>${escapeHtml(formatEstimate(option.amountInFormatted))} ${escapeHtml(ccSymbol(ccLabel(option)))}</strong>
         </div>
         <div class="item-list">
           <button type="button" class="list-item kp-cc-option kp-cc-primary" data-method="wallet">
@@ -354,6 +602,7 @@ export const CrossChainMethods = {
         originAsset: option.originAsset,
         refundAddress,
       });
+    this._ccOptionsCache = null;
     try {
       return await attempt();
     } catch (err) {
@@ -396,7 +645,7 @@ export const CrossChainMethods = {
         wallet: this._getStellarAdapter(),
         onStatus: (title, detail) => setBanner(title, detail),
       });
-      setBanner("Payment sent", `Waiting for your ${route.originAsset} to arrive.`, "is-ok");
+      setBanner("Payment sent", `Waiting for your ${ccSymbol(route.originAsset)} to arrive.`, "is-ok");
       this._ccRenderProgress({ ...route, status: "deposit_seen" });
     } catch (err) {
       const cancelled = err?.code === "WALLET_REJECTED";
@@ -416,18 +665,18 @@ export const CrossChainMethods = {
     const chain = option.chainName;
     const step = this._ccStep(
       "kwespay-step-cc-refund",
-      `Pay with ${option.originAsset}`,
+      `Pay with ${ccLabel(option)}`,
       `
         <div class="kp-cc-summary">
           <span>You'll send about</span>
-          <strong>${escapeHtml(option.amountInFormatted)} ${escapeHtml(option.originAsset)}</strong>
+          <strong>${escapeHtml(formatEstimate(option.amountInFormatted))} ${escapeHtml(ccSymbol(ccLabel(option)))}</strong>
         </div>
         <div class="kp-field">
           <label class="kp-field-label" for="kwespay-cc-refund"><span>Your ${escapeHtml(chain)} address for refunds</span></label>
           <input class="kp-input" id="kwespay-cc-refund" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128"
-            placeholder="${option.chain === "stellar" ? "G…" : "bc1… or 1…"}" />
+            placeholder="Paste your ${escapeHtml(chain)} address" />
           <p class="kp-field-error" id="kwespay-cc-refund-error" role="alert"></p>
-          <p class="kp-field-help">If the payment can't be completed, your ${escapeHtml(option.originAsset)} is returned here. Use an address you control, not an exchange deposit address.</p>
+          <p class="kp-field-help">If the payment can't be completed, your ${escapeHtml(ccSymbol(ccLabel(option)))} is returned here. Use an address you control, not an exchange deposit address.</p>
         </div>
       `,
       {
@@ -483,7 +732,7 @@ export const CrossChainMethods = {
     const memo = route.depositMemo;
     const step = this._ccStep(
       "kwespay-step-cc-deposit",
-      `Send ${route.originAsset}`,
+      `Send ${ccSymbol(route.originAsset)}`,
       `
         <ol class="kp-steps kp-cc-progress" id="kwespay-cc-progress">
           ${PROGRESS.map((p, i) => `<li data-stage="${p.key}"><span class="kp-step-num">${i + 1}</span><span class="kp-step-text">${p.label}</span></li>`).join("")}
@@ -493,7 +742,7 @@ export const CrossChainMethods = {
           <div class="kp-cc-field">
             <span class="kp-cc-label">Amount</span>
             <div class="kp-cc-value-row">
-              <span class="kp-cc-value strong">${escapeHtml(route.amountInFormatted)} ${escapeHtml(route.originAsset)}</span>
+              <span class="kp-cc-value strong">${escapeHtml(route.amountInFormatted)} ${escapeHtml(ccSymbol(route.originAsset))}</span>
               <button type="button" class="kp-cc-copy" data-copy="${escapeHtml(route.amountInFormatted)}">Copy</button>
             </div>
           </div>
@@ -573,13 +822,13 @@ export const CrossChainMethods = {
       const text = document.getElementById("kwespay-cc-status-text");
       if (route.status === "incomplete") {
         if (title) title.textContent = "Deposit too small";
-        if (text) text.textContent = `Less than ${route.amountInFormatted} ${route.originAsset} arrived. It will be returned to your address.`;
+        if (text) text.textContent = `Less than ${route.amountInFormatted} ${ccSymbol(route.originAsset)} arrived. It will be returned to your address.`;
       } else if (route.status === "delivered") {
         if (title) title.textContent = "Confirming payment";
         if (text) text.textContent = `Verifying the ${route.token} payment to the merchant.`;
       } else {
         if (title) title.textContent = "Payment received";
-        if (text) text.textContent = `Converting your ${route.originAsset} to ${route.token}. This takes ${formatEta(route.timeEstimateSeconds) || "a few minutes"}.`;
+        if (text) text.textContent = `Converting your ${ccSymbol(route.originAsset)} to ${route.token}. This takes ${formatEta(route.timeEstimateSeconds) || "a few minutes"}.`;
       }
     }
   },
@@ -619,7 +868,7 @@ export const CrossChainMethods = {
       currency: this.config.currency,
       token: route.token,
       network: route.network,
-      paidWith: { asset: route.originAsset, amount: route.amountInFormatted, transactions: route.originTransactions },
+      paidWith: { asset: ccSymbol(route.originAsset), chain: route.originChain, amount: route.amountInFormatted, transactions: route.originTransactions },
     };
   },
 
@@ -634,8 +883,8 @@ export const CrossChainMethods = {
     setEl("kwespay-txHash", truncateHash(hash));
     setEl("kwespay-txRef", route.transactionReference);
     setEl("kwespay-txFiatAmount", `${this._displayAmount} ${this.config.currency}`);
-    setEl("kwespay-txCryptoAmount", `${route.amountInFormatted} ${route.originAsset}`);
-    setEl("kwespay-txNetwork", `${route.originAsset} → ${route.token} on ${destinationName}`);
+    setEl("kwespay-txCryptoAmount", `${route.amountInFormatted} ${ccSymbol(route.originAsset)}`);
+    setEl("kwespay-txNetwork", `${ccSymbol(route.originAsset)} → ${route.token} on ${destinationName}`);
     const now = new Date();
     setEl("kwespay-txTime", `${now.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
     const link = document.getElementById("kwespay-explorerLink");
@@ -661,7 +910,7 @@ export const CrossChainMethods = {
         <div class="error-icon" style="color:var(--kp-muted)">${icon("info")}</div>
         <h2 class="headline">${refunded ? "Your payment was returned" : "No payment arrived in time"}</h2>
         <p class="body-text">${escapeHtml(refunded
-          ? `${route.refundedAmount ? `${route.refundedAmount} ${route.originAsset}` : `Your ${route.originAsset}`} was sent back to ${truncateAddress(route.refundAddress, 6, 6)}.${route.refundReason ? ` ${route.refundReason}.` : ""}`
+          ? `${route.refundedAmount ? `${route.refundedAmount} ${ccSymbol(route.originAsset)}` : `Your ${ccSymbol(route.originAsset)}`} was sent back to ${truncateAddress(route.refundAddress, 6, 6)}.${route.refundReason ? ` ${route.refundReason}.` : ""}`
           : "If you sent a payment, contact the merchant with your reference before paying again.")}</p>
         <div class="tx-details"><div class="tx-row"><span class="tx-label">Reference</span><span class="tx-value">${escapeHtml(route.transactionReference)}</span></div></div>
       </div>

@@ -58,6 +58,7 @@ declare module "@kwespay/widget" {
 
   export interface PaidWith {
     asset: string;
+    chain: string;
     amount: string;
     transactions: Array<{ hash: string; explorerUrl: string | null }>;
   }

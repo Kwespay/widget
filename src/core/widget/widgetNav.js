@@ -55,6 +55,7 @@ export const NavMethods = {
     this._removeCustomStep("kwespay-step-outcome");
     this._ccStopPolling?.();
     this._ccRemoveSteps?.();
+    this._ccOptionsCache = null;
     if (this.suiWalletService?.isConnected()) {
       this.suiWalletService.disconnect();
     }
