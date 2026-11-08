@@ -9,6 +9,17 @@ function logoMarkup(src, label) {
   return `<img src="${url}" alt="${escapeHtml(label)}" data-kp-fallback="${initial}" />`;
 }
 
+const NEAR_PLACEMENT = { nearMainnet: "polygon", nearTestnet: "polygonAmoy" };
+
+function placeNearNetworks(networks) {
+  const ordered = networks.filter((network) => !NEAR_PLACEMENT[network]);
+  networks.filter((network) => NEAR_PLACEMENT[network]).forEach((near) => {
+    const anchor = ordered.indexOf(NEAR_PLACEMENT[near]);
+    ordered.splice(anchor === -1 ? ordered.length : anchor + 1, 0, near);
+  });
+  return ordered;
+}
+
 export const NetworkMethods = {
   _renderNetworkList() {
     const mainnetList = document.getElementById("kwespay-mainnetList");
@@ -131,7 +142,7 @@ export const NetworkMethods = {
       });
     }
 
-    return networks.filter((n) => !!this._networkConfig(n)?.contractAddress);
+    return placeNearNetworks(networks.filter((n) => !!this._networkConfig(n)?.contractAddress));
   },
 
   _networkConfig(key) {
