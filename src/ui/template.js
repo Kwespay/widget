@@ -1,3 +1,5 @@
+import { icon } from "./icons.js";
+
 export function getStepTemplates(fiatAmount, currency) {
   return `
     <!-- Step 0: Initialising -->
@@ -12,14 +14,13 @@ export function getStepTemplates(fiatAmount, currency) {
           <div class="spinner-ring"></div>
           <div class="spinner-ring-2"></div>
           <div class="spinner-icon">
-            <span class="material-symbols-outlined">shield_lock</span>
+            ${icon("shield_lock")}
           </div>
         </div>
         <h2 class="headline">Initializing</h2>
-        <p class="body-text">Establishing a secure payment session.</p>
       </div>
       <div class="kp-footer">
-        <span class="material-symbols-outlined kp-footer-lock" style="font-size:12px">lock</span>
+        ${icon("lock", "kp-footer-lock", "font-size:12px")}
         <span class="kp-footer-text">Powered by &middot; <span>KwesPay</span></span>
       </div>
     </div>
@@ -33,7 +34,7 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
       <div class="loading-container" style="flex:1">
         <div class="error-icon">
-          <span class="material-symbols-outlined">wifi_off</span>
+          ${icon("wifi_off")}
         </div>
         <h2 class="headline">Payment Unavailable</h2>
         <p class="body-text">We couldn't start your payment session. Please try again or contact the store for help.</p>
@@ -53,7 +54,7 @@ export function getStepTemplates(fiatAmount, currency) {
       <div class="kp-amount-block">
         <div class="kp-amount-label">Total due</div>
         <div class="kp-amount-value" id="kwespay-paymentAmount">${fiatAmount} ${currency}</div>
-        <div class="kp-amount-hint">Select a network to continue</div>
+        <div class="kp-amount-hint" id="kwespay-step1-hint">Select a network to continue</div>
       </div>
       <div class="progress-section">
         <div class="progress-info">
@@ -81,7 +82,7 @@ export function getStepTemplates(fiatAmount, currency) {
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
           <button class="kp-back-btn" id="kwespay-back2">
-            <span class="material-symbols-outlined">arrow_back</span>
+            ${icon("arrow_back")}
           </button>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
@@ -105,7 +106,7 @@ export function getStepTemplates(fiatAmount, currency) {
         <div class="status-card">
           <div class="status-icon" id="kwespay-selectedNetworkIcon"></div>
           <p class="status-text" id="kwespay-selectedNetworkName">—</p>
-          <span class="material-symbols-outlined" style="color:var(--kp-accent);font-size:15px">check_circle</span>
+          ${icon("check_circle", "", "color:var(--kp-accent);font-size:15px")}
         </div>
       </div>
       <div class="content-scroll" style="padding-top:10px">
@@ -122,7 +123,7 @@ export function getStepTemplates(fiatAmount, currency) {
       <div class="kp-topbar">
         <div class="kp-topbar-brand">
           <button class="kp-back-btn" id="kwespay-back3">
-            <span class="material-symbols-outlined">arrow_back</span>
+            ${icon("arrow_back")}
           </button>
           <span class="kp-topbar-name">KwesPay Checkout</span>
         </div>
@@ -143,7 +144,7 @@ export function getStepTemplates(fiatAmount, currency) {
           <div class="kp-review-fiat" id="kwespay-reviewFiatAmount">${fiatAmount} ${currency}</div>
           <div class="kp-review-crypto-line" id="kwespay-reviewCryptoLine">Fetching live quote…</div>
           <div class="kp-quote-timer" id="kwespay-quoteTimer" style="display:none;justify-content:center">
-            <span class="material-symbols-outlined">schedule</span>
+            ${icon("schedule")}
             <span id="kwespay-quoteTimerText">—</span>
           </div>
         </div>
@@ -163,7 +164,7 @@ export function getStepTemplates(fiatAmount, currency) {
         </div>
         <div class="kp-fee-block">
           <div class="kp-fee-header">
-            <span class="material-symbols-outlined">receipt_long</span>
+            ${icon("receipt_long")}
             <span class="kp-fee-header-text">Fee Breakdown</span>
           </div>
           <div class="kp-detail-row">
@@ -171,7 +172,7 @@ export function getStepTemplates(fiatAmount, currency) {
             <span class="kp-detail-val" id="kwespay-feePaymentAmount">—</span>
           </div>
           <div class="kp-detail-row">
-            <span class="kp-detail-key">Platform fee (0.25%)</span>
+            <span class="kp-detail-key" id="kwespay-feePlatformLabel">Platform fee</span>
             <span class="kp-detail-val" id="kwespay-feePlatformFee">—</span>
           </div>
           <div class="kp-detail-row">
@@ -193,7 +194,7 @@ export function getStepTemplates(fiatAmount, currency) {
           <div class="kp-topbar-dot" id="kwespay-step4-dot"></div>
           <span class="kp-topbar-name" id="kwespay-step4-title">KwesPay Checkout</span>
         </div>
-        
+
       </div>
 
       <!-- Sub-view: processing (wallet approval + on-chain) -->
@@ -202,13 +203,13 @@ export function getStepTemplates(fiatAmount, currency) {
           <div class="spinner-ring"></div>
           <div class="spinner-ring-2"></div>
           <div class="spinner-icon">
-            <span class="material-symbols-outlined">payments</span>
+            ${icon("payments")}
           </div>
         </div>
         <h2 class="headline" id="kwespay-processingTitle">Processing Payment</h2>
         <p class="body-text" id="kwespay-processingText">Waiting for wallet confirmation.</p>
         <div class="mobile-instruction" id="kwespay-mobileTransactionInstruction" style="display:none">
-          <span class="material-symbols-outlined mobile-instruction-icon">phone_iphone</span>
+          ${icon("phone_iphone", "mobile-instruction-icon")}
           <div class="mobile-instruction-text">
             <div class="mobile-instruction-title">Check Your Wallet App</div>
             <div class="mobile-instruction-desc">A confirmation request has been sent to your wallet. Tap Approve to complete the payment.</div>
@@ -222,7 +223,7 @@ export function getStepTemplates(fiatAmount, currency) {
           <div class="spinner-ring kp-spin-soft"></div>
           <div class="spinner-ring-2 kp-spin-soft"></div>
           <div class="spinner-icon kp-spinner-icon-green">
-            <span class="material-symbols-outlined" style="color:var(--kp-green)">cloud_sync</span>
+            ${icon("cloud_sync", "", "color:var(--kp-green)")}
           </div>
         </div>
         <h2 class="headline">Confirming Payment</h2>
@@ -234,14 +235,14 @@ export function getStepTemplates(fiatAmount, currency) {
 
         <!-- Thin green confirmed bar -->
         <div class="kp-confirmed-bar">
-          <span class="material-symbols-outlined" style="font-size:13px;color:var(--kp-green)">check_circle</span>
+          ${icon("check_circle", "", "font-size:13px;color:var(--kp-green)")}
           <span>Payment confirmed on-chain</span>
         </div>
 
         <!-- Scrollable receipt body -->
         <div class="loading-container" style="flex:1;padding-bottom:0;justify-content:flex-start;padding-top:20px;overflow-y:auto">
           <div class="success-icon">
-            <span class="material-symbols-outlined">check_circle</span>
+            ${icon("check_circle")}
           </div>
           <h2 class="headline">Payment Successful</h2>
           <p class="body-text">Your transaction has been confirmed on-chain.</p>
@@ -252,7 +253,7 @@ export function getStepTemplates(fiatAmount, currency) {
               <div class="tx-hash-row">
                 <span class="tx-value" id="kwespay-txHash">—</span>
                 <a class="explorer-link" id="kwespay-explorerLink" target="_blank" rel="noopener noreferrer">
-                  <span class="material-symbols-outlined">open_in_new</span>
+                  ${icon("open_in_new")}
                 </a>
               </div>
             </div>
@@ -290,7 +291,7 @@ export function getStepTemplates(fiatAmount, currency) {
         </div>
 
         <div class="kp-footer">
-          <span class="material-symbols-outlined kp-footer-lock" style="font-size:12px">lock</span>
+          ${icon("lock", "kp-footer-lock", "font-size:12px")}
           <span class="kp-footer-text">Secured by <span>KwesPay</span> &middot; On-chain verified</span>
         </div>
       </div>
@@ -306,15 +307,15 @@ export function getStepTemplates(fiatAmount, currency) {
       </div>
       <div class="loading-container" style="flex:1">
         <div class="error-icon">
-          <span class="material-symbols-outlined">error</span>
+          ${icon("error")}
         </div>
         <h2 class="headline" id="kwespay-errorTitle">Something went wrong</h2>
         <p class="body-text" id="kwespay-errorMessage">An error occurred while processing your payment.</p>
 
         <!-- Hint strip — gives context without overwhelming the user -->
         <div class="kp-error-hint">
-          <span class="material-symbols-outlined" style="font-size:14px;color:var(--kp-muted)">info</span>
-          <span>Your funds have not been charged. You can retry safely.</span>
+          ${icon("info", "", "font-size:14px;color:var(--kp-muted)")}
+          <span id="kwespay-errorHintText">Your funds have not been charged. You can retry safely.</span>
         </div>
       </div>
       <div class="bottom-action">

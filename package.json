@@ -1,27 +1,35 @@
 {
   "name": "@kwespay/widget",
   "type": "module",
-  "version": "1.0.10",
-  "description": "KwesPay Crypto Payment Widget - Accept crypto payments in 3 lines of code",
+  "version": "1.2.0",
+  "description": "KwesPay checkout widget: accept crypto priced in fiat on EVM networks, Sui, Stellar and NEAR",
   "main": "dist/kwespay-widget.min.js",
   "module": "dist/esm/index.js",
+  "browser": "dist/browser/kwespay-widget.js",
+  "unpkg": "dist/browser/kwespay-widget.js",
+  "jsdelivr": "dist/browser/kwespay-widget.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "rm -rf dist && rollup -c",
     "dev": "rollup -c -w",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "check:publish": "node scripts/prepublish-check.mjs",
+    "prepublishOnly": "npm run build && node scripts/prepublish-check.mjs"
   },
   "keywords": [
-    "crypto",
-    "payment",
-    "widget",
-    "ethereum",
-    "polygon",
     "blockchain",
-    "web3"
+    "crypto",
+    "ethereum",
+    "near",
+    "payment",
+    "polygon",
+    "stellar",
+    "sui",
+    "web3",
+    "widget"
   ],
   "author": "KwesPay",
   "license": "MIT",
@@ -30,10 +38,15 @@
     "url": "https://github.com/kwespay/widget"
   },
   "dependencies": {
-    "@kwespay/client": "^0.1.23",
-    "@walletconnect/ethereum-provider": "^2.17.0",
-    "ethers": "^6.13.4",
-    "viem": "^2.21.0"
+    "@creit.tech/stellar-wallets-kit": "2.5.0",
+    "@kwespay/client": "file:../kwespay-ts/kwespay-ts/kwespay-client-0.1.29.tgz",
+    "@mysten/slush-wallet": "^1.1.3",
+    "@mysten/sui": "^2.20.1",
+    "@mysten/wallet-standard": "^0.20.1",
+    "@walletconnect/sign-client": "^2.23.9",
+    "@walletconnect/universal-provider": "^2.23.7",
+    "buffer": "^6.0.3",
+    "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
@@ -43,5 +56,10 @@
     "rollup": "^4.60.1",
     "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-postcss": "^4.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@kwespay/client": "file:../kwespay-ts/kwespay-ts/kwespay-client-0.1.29.tgz"
+    }
   }
 }

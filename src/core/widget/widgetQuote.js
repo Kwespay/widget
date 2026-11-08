@@ -1,4 +1,4 @@
-import { formatCryptoAmount } from "../../utils/helpers.js";
+import { formatCryptoAmount, parseApiTimestamp } from "../../utils/helpers.js";
 
 function formatUnits(rawBigInt, decimals) {
   const divisor = BigInt(10 ** decimals);
@@ -71,13 +71,16 @@ export const QuoteMethods = {
     if (proceedBtn) proceedBtn.disabled = true;
 
     try {
-      const quote = await this.paymentService.getQuote({
-        vendorIdentifier: this.config.vendorId,
+      const quoteInput = {
+        vendorId: this.config.vendorId,
         cryptoCurrency: this.state.selectedToken,
         fiatAmount: this.config.amount,
         fiatCurrency: this.config.currency,
         network: this.state.selectedNetwork,
-      });
+        orderId: this.config.orderId,
+      };
+
+      const quote = await this.paymentService.getQuote(quoteInput);
 
       const decimals = this.state.selectedTokenConfig?.decimals ?? 18;
       const sym = this.state.selectedToken;
@@ -89,18 +92,13 @@ export const QuoteMethods = {
         quote.usdPriceSnapshot
       );
       if (!check.ok) {
-        console.error("[KwesPay] Quote sanity check failed:", check.reason);
         throw new Error(
           `Quote returned an implausible amount for ${sym}. Please contact support.`
         );
       }
 
-      this.state.currentPayload = {
-        ...quote,
-        vendorIdentifier: this.config.vendorId,
-        fiatAmount: this.config.amount,
-        fiatCurrency: this.config.currency,
-      };
+      this.state.currentQuote = quote;
+      this.state.currentPayload = null;
 
       const fmt = (n) =>
         formatCryptoAmount(parseFloat(formatUnits(n, decimals)), sym);
@@ -115,12 +113,16 @@ export const QuoteMethods = {
       }
       if (feeAmount) feeAmount.textContent = fmt(totalBig);
       if (feePlatform) feePlatform.textContent = fmt(feeBig);
+      const feeLabel = document.getElementById("kwespay-feePlatformLabel");
+      if (feeLabel && amountBig > 0n) {
+        const bps = Number((feeBig * 10000n + amountBig / 2n) / amountBig);
+        feeLabel.textContent = `Platform fee (${bps / 100}%)`;
+      }
       if (feeVendor) feeVendor.textContent = fmt(amountBig);
       if (proceedBtn) proceedBtn.disabled = false;
 
       this._startQuoteTimer(quote.expiresAt);
     } catch (err) {
-      console.error("[KwesPay] Quote fetch failed:", err.message);
       if (cryptoLine) {
         cryptoLine.textContent = "Could not load please try again.";
         cryptoLine.classList.remove("loading");
@@ -135,8 +137,13 @@ export const QuoteMethods = {
     if (!timerEl || !timerText) return;
     timerEl.style.display = "flex";
 
+    const QUOTE_MAX_VALIDITY_MS = 5 * 60_000;
+    const apiExpiry = parseApiTimestamp(expiresAt);
+    const cap = Date.now() + QUOTE_MAX_VALIDITY_MS;
+    const effectiveExpiry = Number.isFinite(apiExpiry) ? Math.min(apiExpiry, cap) : cap;
+
     const update = () => {
-      const remaining = Math.max(0, new Date(expiresAt).getTime() - Date.now());
+      const remaining = Math.max(0, effectiveExpiry - Date.now());
       const secs = Math.ceil(remaining / 1000);
       const mins = Math.floor(secs / 60);
       const s = secs % 60;

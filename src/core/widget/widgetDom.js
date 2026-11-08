@@ -9,6 +9,11 @@ export const DomMethods = {
     this._createWidgetDOM();
   },
 
+  _isCurrentInstance() {
+    const overlay = document.getElementById("kwespay-widget-overlay");
+    return !!overlay && overlay.dataset.kwespayInstance === this._instanceId;
+  },
+
   _injectFonts() {
     if (
       !document.querySelector(
@@ -17,7 +22,7 @@ export const DomMethods = {
     ) {
       const link = document.createElement("link");
       link.href =
-        "https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap";
+        "https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap";
       link.rel = "stylesheet";
       document.head.appendChild(link);
     }
@@ -38,6 +43,11 @@ export const DomMethods = {
     const overlay = document.createElement("div");
     overlay.className = "kwespay-overlay";
     overlay.id = "kwespay-widget-overlay";
+    overlay.dataset.kwespayInstance = this._instanceId;
+    if (this.config.presentation === "page") {
+      overlay.classList.add("kp-page");
+      document.body.classList.add("kwespay-page");
+    }
 
     const container = document.createElement("div");
     container.className = "kwespay-container";
@@ -47,7 +57,7 @@ export const DomMethods = {
     closeBtn.className = "kwespay-close-btn";
     closeBtn.innerHTML = "×";
     closeBtn.onclick = () => this.close();
-    container.appendChild(closeBtn);
+    if (this.config.presentation !== "page") container.appendChild(closeBtn);
 
     const stepsWrapper = document.createElement("div");
     stepsWrapper.className = "kwespay-steps-wrapper";
@@ -58,10 +68,27 @@ export const DomMethods = {
     container.appendChild(stepsWrapper);
 
     overlay.appendChild(container);
+    overlay.addEventListener(
+      "error",
+      (event) => {
+        const img = event.target;
+        if (!(img instanceof HTMLImageElement)) return;
+        const initial = img.dataset.kpFallback;
+        if (initial === undefined) {
+          img.style.display = "none";
+          return;
+        }
+        const span = document.createElement("span");
+        span.className = "kp-logo-fallback";
+        span.textContent = initial;
+        img.replaceWith(span);
+      },
+      true
+    );
     document.body.appendChild(overlay);
 
     this._setupEventListeners();
-    this._setupSwipeToClose(container);
+    if (this.config.presentation !== "page") this._setupSwipeToClose(container);
   },
 
   _setupSwipeToClose(container) {
@@ -105,12 +132,27 @@ export const DomMethods = {
     });
   },
 
+  async _disconnectActiveWallet() {
+    const ecosystem = this.state.selectedNetworkConfig?.ecosystem;
+    if (ecosystem === "sui") {
+      await this._disconnectSuiWallet();
+    } else if (ecosystem === "stellar") {
+      await this._disconnectStellarWallet();
+    } else if (ecosystem === "near") {
+      await this._disconnectNearWallet();
+    } else {
+      await this.walletService.disconnect();
+      if (this._activeEvmTransport?.isConnected()) {
+        await this._activeEvmTransport.disconnect();
+      }
+      this._activeEvmTransport = null;
+    }
+  },
+
   _setupEventListeners() {
     document
       .getElementById("kwespay-retryInitBtn")
       ?.addEventListener("click", () => this._validateAPIKey());
-
-    this._renderNetworkList();
 
     document.getElementById("kwespay-back2")?.addEventListener("click", () => {
       this.state.selectedToken = null;
@@ -123,7 +165,7 @@ export const DomMethods = {
     document
       .getElementById("kwespay-back3")
       ?.addEventListener("click", async () => {
-        await this.walletService.disconnect();
+        await this._disconnectActiveWallet();
         this._clearQuoteTimer();
         this._goToStep(2);
       });
@@ -143,7 +185,7 @@ export const DomMethods = {
     document
       .getElementById("kwespay-cancelConnection")
       ?.addEventListener("click", async () => {
-        await this.walletService.disconnect();
+        await this._disconnectActiveWallet();
         this._clearQuoteTimer();
         dispatchWidgetEvent("paymentCancelled", {
           reason: "user_cancelled_review",
@@ -154,11 +196,36 @@ export const DomMethods = {
     document
       .getElementById("kwespay-retryPayment")
       ?.addEventListener("click", async () => {
-        if (this.walletService.isConnected()) {
-          await this._loadReviewStep();
-          this._goToStep(3);
+        const ecosystem = this.state.selectedNetworkConfig?.ecosystem;
+
+        if (ecosystem === "sui") {
+          if (this.suiWalletService?.isConnected()) {
+            await this._loadReviewStep();
+            this._goToStep(3);
+          } else {
+            await this._handleSuiWalletConnection();
+          }
+        } else if (ecosystem === "stellar") {
+          if (this.stellarWalletService?.isConnected()) {
+            await this._loadReviewStep();
+            this._goToStep(3);
+          } else {
+            await this._handleStellarWalletConnection();
+          }
+        } else if (ecosystem === "near") {
+          if (this.nearWalletService?.isConnected()) {
+            await this._loadReviewStep();
+            this._goToStep(3);
+          } else {
+            await this._handleNearWalletConnection();
+          }
         } else {
-          await this._handleWalletConnection();
+          if (this.walletService.isConnected()) {
+            await this._loadReviewStep();
+            this._goToStep(3);
+          } else {
+            await this._handleWalletConnection();
+          }
         }
       });
 
@@ -172,6 +239,7 @@ export const DomMethods = {
         dispatchWidgetEvent("paymentCancelled", {
           reason: "user_started_over",
         });
+        this.paymentService.startNewAttempt?.();
         this._reset();
         this._goToStep(1);
       });

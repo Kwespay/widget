@@ -1,179 +1,182 @@
-class PaymentService {
-  constructor(apiKey, graphqlEndpoint) {
-    this.apiKey = apiKey;
-    this.graphqlEndpoint = graphqlEndpoint;
-    this._graphqlEndpoint = graphqlEndpoint;
+import { ensureBuffer } from "../utils/nodeGlobals.js";
+
+let _KwesPayClient = null;
+
+async function getClientClass() {
+  if (_KwesPayClient) return _KwesPayClient;
+  await ensureBuffer();
+  const mod = await import("@kwespay/client");
+  _KwesPayClient = mod.KwesPayClient;
+  return _KwesPayClient;
+}
+
+export default class PaymentService {
+  constructor(apiKey, suiNetworks, stellarNetworks, graphqlEndpoint, nearNetworks) {
     this._apiKey = apiKey;
-    this.client = null;
+    this._suiNetworks = suiNetworks ?? undefined;
+    this._stellarNetworks = stellarNetworks ?? undefined;
+    this._graphqlEndpoint = graphqlEndpoint ?? undefined;
+    this._nearNetworks = nearNetworks ?? undefined;
+    this._client = null;
   }
 
-  async _initClient() {
-    if (this.client) return;
-    const { KwesPayClient } = await import("@kwespay/client");
-    this.client = new KwesPayClient({ apiKey: this.apiKey });
-  }
-
-  async _rawGql(query, variables) {
-    const res = await fetch(this._graphqlEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": this._apiKey,
-      },
-      body: JSON.stringify({ query, variables }),
+  async _getClient() {
+    if (this._client) return this._client;
+    const KwesPayClient = await getClientClass();
+    this._client = new KwesPayClient({
+      apiKey: this._apiKey,
+      suiNetworks: this._suiNetworks,
+      stellarNetworks: this._stellarNetworks,
+      nearNetworks: this._nearNetworks,
+      graphqlEndpoint: this._graphqlEndpoint,
     });
-    return res.json();
+    return this._client;
   }
 
-  async validateAPIKey() {
-    try {
-      await this._initClient();
-      const result = await this.client.validateKey();
-      if (!result.isValid) {
-        return { valid: false, error: result.error ?? "Invalid access key" };
-      }
-      return {
-        valid: true,
-        keyId: result.keyId,
-        vendorInfo: result.vendorInfo,
-        allowedVendors: result.scope.allowedVendors ?? null,
-        allowedNetworks: result.scope.allowedNetworks ?? null,
-        allowedTokens: result.scope.allowedTokens ?? null,
-      };
-    } catch (err) {
-      console.error("[KwesPay] API key validation error:", err);
-      return { valid: false, error: err.message };
+  async validateAPIKey(vendorId = null) {
+    const client = await this._getClient();
+    const result = await client.validateKey(vendorId ?? undefined);
+    if (!result.isValid) {
+      return { valid: false, error: result.error };
     }
+    return {
+      valid: true,
+      vendorInfo: result.vendorInfo,
+      allowedNetworks: result.scope?.allowedNetworks ?? null,
+      allowedTokens: result.scope?.allowedTokens ?? null,
+      scope: {
+        allowedVendors: result.scope?.allowedVendors ?? null,
+        isAuthorizedForVendor: result.scope?.isAuthorizedForVendor ?? null,
+      },
+    };
   }
 
-  async getQuote(params) {
-    await this._initClient();
-    return this.client.getQuote({
-      vendorIdentifier: params.vendorIdentifier,
-      fiatAmount: params.fiatAmount,
-      fiatCurrency: params.fiatCurrency || "USD",
-      cryptoCurrency: params.cryptoCurrency,
-      network: params.network,
+  async getNetworks() {
+    const client = await this._getClient();
+    return client.getNetworks();
+  }
+
+  async getMerchantConfig(vendorIdentifier) {
+    const client = await this._getClient();
+    return client.getMerchantConfig(vendorIdentifier);
+  }
+
+  async getQuote({ vendorId, fiatAmount, fiatCurrency, cryptoCurrency, network, orderId }) {
+    const client = await this._getClient();
+    return client.getQuote({
+      vendorIdentifier: vendorId ?? undefined,
+      fiatAmount,
+      fiatCurrency: fiatCurrency ?? "USD",
+      cryptoCurrency,
+      network,
+      orderId: orderId ?? undefined,
+    });
+  }
+
+  async checkBalance({ quote, payerWalletAddress, provider }) {
+    const client = await this._getClient();
+    return client.checkBalance({ quote, payerWalletAddress, provider });
+  }
+
+  async createTransaction({ quote, vendorId, payerWalletAddress }) {
+    const client = await this._getClient();
+    return client.createTransaction({
+      quote,
+      vendorIdentifier: vendorId,
+      payerWalletAddress,
     });
   }
 
   async createPayment({ payload, walletProvider, onStatusUpdate }) {
-    await this._initClient();
-
-    const accounts = await walletProvider.request({ method: "eth_accounts" });
-    const payerWalletAddress = accounts[0];
-
-    // Call createTransaction directly so we can request the deadline field,
-    // which the SDK's GQL_CREATE_TRANSACTION query does not yet include.
-    const rawTx = await this._rawGql(
-      `mutation CreateTransaction($input: CreateTransactionInput!) {
-        createTransaction(input: $input) {
-          success
-          message
-          paymentIdBytes32
-          backendSignature
-          tokenAddress
-          amountBaseUnits
-          chainId
-          deadline
-          expiresAt
-          transaction {
-            transactionReference
-            transactionStatus
-          }
-        }
-      }`,
-      { input: { quoteId: payload.quoteId, payerWalletAddress } }
-    );
-
-    const ct = rawTx?.data?.createTransaction;
-
-    if (!ct?.success) {
-      throw new Error(ct?.message ?? "Transaction creation failed");
-    }
-
-    if (!ct.deadline) {
-      throw new Error("Backend did not return a deadline");
-    }
-
-    // Compute totalBaseUnits locally — mirrors the contract formula:
-    // fee = (amount * 50) / 10000,  total = amount + fee
-    const PLATFORM_FEE_BPS = 50n;
-    const amountBig = BigInt(ct.amountBaseUnits);
-    const feeBig = (amountBig * PLATFORM_FEE_BPS) / 10000n;
-    const totalBig = amountBig + feeBig;
-
-    // Build the complete TransactionPayload the SDK's pay() expects.
-    const txPayload = {
-      paymentIdBytes32: ct.paymentIdBytes32,
-      backendSignature: ct.backendSignature,
-      tokenAddress: ct.tokenAddress,
-      amountBaseUnits: ct.amountBaseUnits,
-      totalBaseUnits: totalBig.toString(),
-      chainId: ct.chainId,
-      deadline: ct.deadline,
-      expiresAt: ct.expiresAt,
-      transactionReference: ct.transaction.transactionReference,
-      transactionStatus: ct.transaction.transactionStatus,
-      network: payload.network,
-      vendorIdentifier: payload.vendorIdentifier,
-    };
-
-    const result = await this.client.pay({
+    const client = await this._getClient();
+    const result = await client.pay({
       provider: walletProvider,
-      payload: txPayload,
-      onStatus: (title, detail) => onStatusUpdate?.(title, detail),
+      payload,
+      onStatus: onStatusUpdate,
     });
-
     return {
       hash: result.txHash,
-      blockNumber: result.blockNumber,
       transactionReference: result.transactionReference,
       paymentIdBytes32: result.paymentIdBytes32,
+      blockNumber: result.blockNumber,
     };
   }
 
-  async getTransactionStatus(transactionReference) {
-    await this._initClient();
-    return this.client.getTransactionStatus(transactionReference);
+  async createSuiPayment({ payload, wallet, onStatusUpdate }) {
+    const client = await this._getClient();
+    const result = await client.pay({
+      wallet,
+      payload,
+      onStatus: onStatusUpdate,
+    });
+    return {
+      hash: result.txHash,
+      transactionReference: result.transactionReference,
+      paymentIdBytes32: result.paymentIdBytes32,
+      blockNumber: result.blockNumber,
+    };
+  }
+
+ 
+  async createStellarPayment({ payload, wallet, onStatusUpdate }) {
+    const client = await this._getClient();
+    const result = await client.pay({
+      wallet,
+      payload,
+      onStatus: onStatusUpdate,
+    });
+    return {
+      hash: result.txHash,
+      transactionReference: result.transactionReference,
+      paymentIdBytes32: result.paymentIdBytes32,
+      blockNumber: result.blockNumber,
+    };
+  }
+
+  async createNearPayment({ payload, wallet, onStatusUpdate }) {
+    const client = await this._getClient();
+    const result = await client.pay({
+      wallet,
+      payload,
+      onStatus: onStatusUpdate,
+    });
+    return {
+      hash: result.txHash,
+      transactionReference: result.transactionReference,
+      paymentIdBytes32: result.paymentIdBytes32,
+      blockNumber: result.blockNumber,
+    };
+  }
+
+  async getCrossChainOptions({ quote }) {
+    const client = await this._getClient();
+    return client.getCrossChainOptions({ quote });
+  }
+
+  async payFromAnotherAsset({ quoteId, originAsset, refundAddress }) {
+    const client = await this._getClient();
+    return client.payFromAnotherAsset({ quoteId, originAsset, refundAddress });
+  }
+
+  async sendCrossChainDeposit({ route, wallet, onStatus }) {
+    const client = await this._getClient();
+    return client.sendCrossChainDeposit({ route, wallet, onStatus });
+  }
+
+  async getPaymentRoute(transactionReference) {
+    const client = await this._getClient();
+    return client.getPaymentRoute(transactionReference);
   }
 
   async pollTransactionStatus(
     transactionReference,
-    { onStatus, intervalMs = 4000, maxAttempts = 60 } = {}
+    { intervalMs, maxAttempts, onStatus } = {}
   ) {
-    await this._initClient();
-    let attempts = 0;
-    return new Promise((resolve, reject) => {
-      const id = setInterval(async () => {
-        attempts++;
-        try {
-          const status = await this.getTransactionStatus(transactionReference);
-          onStatus?.(status.transactionStatus);
-          const terminal = [
-            "completed",
-            "failed",
-            "expired",
-            "underpaid",
-            "overpaid",
-            "refunded",
-          ];
-          if (terminal.includes(status.transactionStatus)) {
-            clearInterval(id);
-            resolve(status);
-          } else if (attempts >= maxAttempts) {
-            clearInterval(id);
-            reject(new Error("Transaction status polling timed out."));
-          }
-        } catch (err) {
-          if (attempts >= maxAttempts) {
-            clearInterval(id);
-            reject(err);
-          }
-        }
-      }, intervalMs);
+    const client = await this._getClient();
+    return client.pollTransactionStatus(transactionReference, {
+      intervalMs,
+      maxAttempts,
+      onStatus,
     });
   }
 }
-
-export default PaymentService;
