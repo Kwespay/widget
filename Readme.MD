@@ -1,249 +1,134 @@
 # @kwespay/widget
 
-> Accept crypto payments on any EVM chain with a single JavaScript widget.
+Checkout modal for accepting crypto priced in fiat. EVM networks, Sui, Stellar and NEAR, plus payment from other chains powered by NEAR Intents.
 
-[![npm version](https://img.shields.io/npm/v/@kwespay/widget)](https://www.npmjs.com/package/@kwespay/widget)
-[![license](https://img.shields.io/npm/l/@kwespay/widget)](LICENSE)
+Full documentation: [docs.kwespay.xyz/guides/checkout-widget](https://docs.kwespay.xyz/guides/checkout-widget/)
 
----
+## HTML embed
 
-## Get Started
+```html
+<script
+  type="module"
+  src="https://cdn.jsdelivr.net/npm/@kwespay/widget@1.2.0/dist/browser/kwespay-widget.js"
+  data-kwespay-key="YOUR_API_KEY"
+></script>
 
-1. Create a merchant account at [app.kwespay.xyz](https://app.kwespay.xyz)
-2. Grab your **API Key** and **Vendor ID** from the dashboard
-3. Install the widget and start accepting payments
+<button data-kwespay-amount="49.99" data-kwespay-currency="USD" data-kwespay-order="A-1042">Pay with crypto</button>
+```
 
----
+The key, vendor (`data-kwespay-vendor`) and environment (`data-kwespay-environment`) are read only from the script tag. The customer stays on your page: listen for `kwespay:result` on `document` to react when checkout finishes.
 
-## Installation
+## JavaScript
 
 ```bash
 npm install @kwespay/widget
 ```
 
-Or load via CDN (no bundler required):
-
-```html
-<script src="https://unpkg.com/@kwespay/widget/dist/kwespay-widget.min.js"></script>
-```
-
----
-
-## Quick Start
-
-### One-liner (recommended)
-
-The `kwespay()` function is the simplest way to integrate. It handles widget
-creation, amount updates, and cleanup automatically — one `await` and you're done.
-
 ```js
 import { kwespay } from "@kwespay/widget";
 
-try {
-  const result = await kwespay({
-    apiKey: "your_api_key", // from app.kwespay.xyz
-    vendorId: "your_vendor_id", // from app.kwespay.xyz
-    amount: 49.99,
-    currency: "USD",
-  });
-
-  console.log("Payment confirmed:", result.transactionHash);
-  // fulfil your order here
-} catch (err) {
-  if (err.code !== "USER_CANCELLED") {
-    console.error("Payment failed:", err.message);
-  }
-}
-```
-
-### Class-based (full lifecycle control)
-
-If you need to manage the widget instance yourself — for example, to call
-`updateAmount()` or `destroy()` explicitly — use the class directly.
-
-```js
-import KwesPayWidget from "@kwespay/widget";
-
-const widget = new KwesPayWidget({
-  apiKey: "your_api_key",
-  vendorId: "your_vendor_id",
+const result = await kwespay({
+  apiKey: "YOUR_API_KEY",
   amount: 49.99,
   currency: "USD",
+  orderId: "A-1042",
 });
-
-try {
-  const result = await widget.open();
-  console.log("Payment confirmed:", result.transactionHash);
-} catch (err) {
-  if (err.code !== "USER_CANCELLED") {
-    console.error("Payment failed:", err.message);
-  }
-} finally {
-  widget.destroy();
-}
 ```
 
-The widget handles everything — wallet connection, network switching, token
-selection, transaction signing, and success/error states.
+## Confirm on your server
 
----
-
-## Configuration
+The browser result can be altered, so confirm the order with `@kwespay/client` before fulfilling it:
 
 ```js
-const widget = new KwesPayWidget({
-  apiKey: "your_api_key", // Required — from app.kwespay.xyz
-  vendorId: "your_vendor_id", // Required — from app.kwespay.xyz
-  amount: 25.0, // Required — fiat amount to charge
-  currency: "USD", // Optional — "USD" (default) or "GHS"
-  acceptedTokens: ["USDT", "USDC"], // Optional — restrict accepted tokens
-});
+const check = await kwespay.verifyPayment(reference, { orderId: "A-1042", amount: 49.99, currency: "USD" });
+if (check.paid) await markOrderPaid("A-1042");
 ```
 
-### `acceptedTokens`
+## Options
 
-| Value              | Behaviour                            |
-| ------------------ | ------------------------------------ |
-| `undefined`        | All tokens on all supported networks |
-| `"stablecoins"`    | USDT, USDC, DAI, BUSD, USDc          |
-| `["USDT", "USDC"]` | Only the listed tokens               |
+| Option | Default | |
+| --- | --- | --- |
+| `apiKey` | required | API key from the dashboard |
+| `amount` | required | Fiat amount |
+| `orderId` | | Your order ID, checked by `verifyPayment` |
+| `vendorId` | from the key | Only needed when the key can access more than one merchant |
+| `currency` | `"USD"` | Any ISO 4217 code |
+| `environment` | `"mainnet"` | `"mainnet"` or `"testnet"` |
+| `graphqlEndpoint` | | Overrides `environment` |
+| `acceptedTokens` | all | Array of symbols, or `"stablecoins"` |
+| `nearWallet` | | A NEAR wallet your page already connected (`getAccounts` + `signAndSendTransaction`). The widget then skips its NEAR wallet picker |
+| `onPaymentSuccess` | | Transaction broadcast. Not proof of payment |
+| `onPaymentConfirmed` | | KwesPay recorded `completed` |
+| `onPaymentFinalised` | | Any final status, or `unconfirmed` |
+| `onPaymentUnconfirmed` | | Confirmation timed out |
+| `onPaymentError` | | A step failed. The customer may retry |
 
-Token and network availability is also scoped by the permissions set on your
-API key in the dashboard.
+Networks, contracts and tokens are loaded from the KwesPay API for the chosen environment and filtered to what the merchant accepts. Nothing is hardcoded in the widget.
 
----
+On NEAR the customer picks Meteor, Intear or Sender. The widget loads `@near-wallet-selector` from jsDelivr only when the customer chooses a NEAR network, so pages that never use NEAR download nothing extra.
 
-## Supported Networks
+## Pay from any chain (powered by NEAR Intents)
 
-| Network      | Chain ID | Type    |
-| ------------ | -------- | ------- |
-| Ethereum     | 1        | Mainnet |
-| MEZO         | 31612    | Mainnet |
-| Polygon      | 137      | Mainnet |
-| Base         | 8453     | Mainnet |
-| Lisk         | 1135     | Mainnet |
-| Sepolia      | 11155111 | Testnet |
-| Polygon Amoy | 80002    | Testnet |
-| Base Sepolia | 84532    | Testnet |
-| Lisk Sepolia | 4202     | Testnet |
-| MEZO Testnet | 31611    | Testnet |
+When a merchant turns on payments from other assets, the network list shows **Pay with XLM or BTC** next to the usual networks. No extra code or configuration is needed in your page.
 
----
+1. The customer picks XLM or BTC and sees the live price.
+2. They enter their own address for refunds.
+3. The widget shows the amount, deposit address, memo and a QR code. The customer sends from any wallet or exchange; nothing connects to your site.
+4. [NEAR Intents](https://near-intents.org) converts the payment and delivers USDC to the merchant on Base. KwesPay verifies the delivery on-chain, then the widget shows the receipt.
 
-## Payment Result
+The result is the same as any other payment, with `network: "base"`, `token: "USDC"` and a `paidWith` field (`{ asset, amount, transactions }`). `transactionHash` is the Base delivery. Confirm it on your server with `verifyPayment()` as usual. The `crossChainDepositReady` event fires when the deposit details are shown.
 
-Both `kwespay()` and `widget.open()` resolve with the same result object:
+## Result
+
+`kwespay()` and `widget.open()` resolve with:
 
 ```ts
 {
-  transactionHash: string; // On-chain transaction hash
-  transactionReference: string; // KwesPay internal payment reference
-  paymentIdBytes32: string; // On-chain payment ID (bytes32)
-  transactionStatus: "completed" | "unconfirmed";
-  fiatAmount: number; // Charged fiat amount
-  currency: string; // e.g. "USD"
-  token: string; // e.g. "USDC"
-  network: string; // e.g. "polygon"
+  transactionHash: string;
+  transactionReference: string;
+  paymentIdBytes32: string;
+  transactionStatus: "completed" | "underpaid" | "overpaid" | "failed" | "expired" | "refunded" | "unconfirmed";
+  fiatAmount: number;
+  currency: string;
+  token: string;
+  network: string;
+  orderId: string | null;
 }
 ```
 
-`"unconfirmed"` means the transaction is confirmed on-chain but the KwesPay
-backend did not acknowledge it within the polling window. The payment is still
-valid — reconcile it via the `kwespay:paymentUnconfirmed` event or your backend.
+Only `completed` means paid in full. `unconfirmed` means the transaction was sent but KwesPay had not confirmed it yet. Do not treat it as paid.
 
-### Error codes
-
-The returned Promise rejects with an `Error` whose `.code` is one of:
-
-| Code               | Meaning                                           |
-| ------------------ | ------------------------------------------------- |
-| `USER_CANCELLED`   | User closed the widget without completing payment |
-| `USER_REJECTED`    | User rejected the transaction in their wallet     |
-| `SESSION_EXPIRED`  | Wallet session timed out mid-payment              |
-| `WIDGET_DESTROYED` | `widget.destroy()` was called mid-payment         |
-| `UNKNOWN`          | Unexpected error — check `err.message`            |
-
----
+The promise rejects only when the customer closes the widget without paying, or `destroy()` is called. `err.code` is `USER_CANCELLED`, `WIDGET_DESTROYED`, or the last failure the customer saw, such as `USER_REJECTED` or `INSUFFICIENT_BALANCE`.
 
 ## Methods
 
-These are available on a `KwesPayWidget` instance. When using `kwespay()` you
-don't need to call any of them — they are managed for you.
-
-```js
-widget.open(); // Open the widget — returns a Promise<PaymentResult>
-widget.close(); // Close the widget
-widget.isOpen(); // Returns boolean
-widget.updateAmount(15.0, "USD"); // Update amount between opens
-widget.getState(); // Returns current widget and config state
-widget.destroy(); // Remove widget from DOM and clean up
-```
-
----
+| Method | |
+| --- | --- |
+| `open()` | Opens the widget. Returns the payment promise |
+| `close()` | Closes the widget and settles the promise |
+| `destroy()` | Removes the widget. Rejects with `WIDGET_DESTROYED` |
+| `isOpen()` | `true` while visible |
+| `updateAmount(amount, currency?)` | Change the amount between opens |
+| `getState()` | Debug snapshot |
 
 ## Events
 
-DOM events are dispatched on `window` for every significant widget action.
-These fire regardless of whether you use `kwespay()` or the class directly,
-and are useful for analytics, logging, or non-`async` integrations.
+Dispatched on `window` as `kwespay:<name>`:
 
-```js
-window.addEventListener("kwespay:paymentSuccess", (e) => {
-  const {
-    transactionHash,
-    transactionReference,
-    paymentIdBytes32,
-    fiatAmount,
-    currency,
-    token,
-    network,
-  } = e.detail;
-  // fulfil your order here
-});
+`widgetOpened`, `widgetClosed`, `apiKeyValidated`, `apiKeyInvalid`, `apiKeyError`, `walletConnected`, `walletConnectionError`, `crossChainDepositReady`, `paymentSuccess`, `paymentFinalised`, `paymentConfirmed`, `paymentIncomplete`, `paymentUnconfirmed`, `paymentError`, `paymentCancelled`, `amountUpdated`, `widgetDestroyed`.
 
-window.addEventListener("kwespay:paymentError", (e) => {
-  console.error(e.detail.error, e.detail.errorType);
-});
+Events run in the customer's browser. They are not proof of payment.
 
-window.addEventListener("kwespay:paymentUnconfirmed", (e) => {
-  // On-chain tx succeeded but backend confirmation timed out.
-  // Safe to treat as paid — reconcile async on your backend.
-  console.log(e.detail.transactionReference, e.detail.transactionHash);
-});
+## Development
 
-window.addEventListener("kwespay:paymentCancelled", (e) => {
-  console.log(e.detail.reason); // "user_cancelled_review" | "user_started_over"
-});
-
-window.addEventListener("kwespay:widgetOpened", () => {});
-
-window.addEventListener("kwespay:widgetClosed", (e) => {
-  console.log(e.detail.completedPayment); // boolean
-});
-
-window.addEventListener("kwespay:apiKeyValidated", (e) => {
-  console.log(e.detail.vendorInfo);
-});
+```bash
+pnpm install
+pnpm build
+pnpm check:publish
 ```
 
----
-
-## Wallet Support
-
-- **Injected wallets** — MetaMask, Coinbase Wallet, Rabby, and any EIP-6963 compatible wallet
-- **Mobile wallets** — WalletConnect v2 via QR code and deep link
-
----
-
-## Examples
-
-| Example                                                                 | Stack                 |
-| ----------------------------------------------------------------------- | --------------------- |
-| [Static HTML demo](https://github.com/kwespay/widget-example-static)    | Vanilla JS, unpkg CDN |
-| [Next.js demo](https://github.com/Kwespay/Kwespay-embedded-widget-demo) | Next.js, React, npm   |
-
----
+`pnpm.overrides` points `@kwespay/client` at the local SDK tarball for development. `prepublishOnly` refuses to publish while the required SDK version is not on npm, a dependency uses a local path, or the build contains a private endpoint.
 
 ## License
 
-MIT © KwesPay
+MIT

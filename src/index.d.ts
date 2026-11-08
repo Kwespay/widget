@@ -1,26 +1,78 @@
 declare module "@kwespay/widget" {
+  export type FinalStatus =
+    | "completed"
+    | "underpaid"
+    | "overpaid"
+    | "failed"
+    | "expired"
+    | "refunded";
+
+  export interface SuiNetworkOverride {
+    packageId?: string;
+    registryObjectId?: string;
+  }
+
+  export interface StellarNetworkOverride {
+    contractId?: string;
+    rpcUrl?: string;
+  }
+
+  export interface NearNetworkOverride {
+    contractId?: string;
+    rpcUrl?: string;
+  }
+
+  export interface NearWallet {
+    getAccounts(): Promise<Array<{ accountId: string }>>;
+    signAndSendTransaction(params: {
+      signerId?: string;
+      receiverId: string;
+      actions: Array<{
+        type: "FunctionCall";
+        params: { methodName: string; args: Record<string, unknown>; gas: string; deposit: string };
+      }>;
+    }): Promise<unknown>;
+  }
+
   export interface KwesPayConfig {
     apiKey: string;
-    vendorId: string;
+    vendorId?: string;
     amount: number;
+    orderId?: string;
     currency?: string;
+    environment?: "mainnet" | "testnet";
+    graphqlEndpoint?: string;
     acceptedTokens?: string[] | "stablecoins";
+    appName?: string;
+    projectId?: string;
+    suiNetworks?: Record<string, SuiNetworkOverride>;
+    stellarNetworks?: Record<string, StellarNetworkOverride>;
+    nearNetworks?: Record<string, NearNetworkOverride>;
+    nearWallet?: NearWallet;
     onPaymentSuccess?: (payload: PaymentResult) => void;
     onPaymentConfirmed?: (payload: PaymentResult) => void;
+    onPaymentFinalised?: (payload: PaymentResult) => void;
     onPaymentUnconfirmed?: (payload: UnconfirmedPayload) => void;
-    onPaymentError?: (payload: { error: string; errorType: string }) => void;
+    onPaymentError?: (payload: ErrorPayload) => void;
+  }
+
+  export interface PaidWith {
+    asset: string;
+    amount: string;
+    transactions: Array<{ hash: string; explorerUrl: string | null }>;
   }
 
   export interface PaymentResult {
     transactionHash: string;
     transactionReference: string;
-    paymentIdBytes32: string;
-    /** "completed" when backend confirmed; "unconfirmed" on polling timeout */
-    transactionStatus: "completed" | "unconfirmed";
+    paymentIdBytes32: string | null;
+    transactionStatus: FinalStatus | "unconfirmed";
     fiatAmount: number;
     currency: string;
     token: string;
     network: string;
+    orderId: string | null;
+    paidWith?: PaidWith;
   }
 
   export interface UnconfirmedPayload {
@@ -29,17 +81,22 @@ declare module "@kwespay/widget" {
     reason: string;
   }
 
+  export interface ErrorPayload {
+    error: string;
+    errorType: string;
+  }
+
+  export type WidgetErrorCode =
+    | "USER_CANCELLED"
+    | "USER_REJECTED"
+    | "SESSION_EXPIRED"
+    | "WIDGET_DESTROYED"
+    | "UNKNOWN"
+    | (string & {});
+
   export class KwesPayWidget {
     constructor(config: KwesPayConfig);
-
-    /**
-     * Open the widget and await the payment result.
-     *
-     * Resolves with PaymentResult on success.
-     * Rejects with an Error (err.code set) on cancellation or failure.
-     */
     open(): Promise<PaymentResult>;
-
     close(): void;
     destroy(): void;
     isOpen(): boolean;
@@ -47,20 +104,9 @@ declare module "@kwespay/widget" {
     getState(): object;
   }
 
-  /**
-   * Open the KwesPay checkout widget and await the result.
-   * Handles instance lifecycle (creation, caching, cleanup) automatically.
-   *
-   * @example
-   * try {
-   *   const result = await kwespay({ apiKey, vendorId, amount, currency: "USD" });
-   *   console.log("Paid:", result.transactionHash);
-   * } catch (err) {
-   *   if (err.code !== "USER_CANCELLED") console.error(err);
-   * }
-   */
   export function kwespay(config: KwesPayConfig): Promise<PaymentResult>;
+  export function attemptMobileResume(): void;
+  export function hasPendingMobileResume(): boolean;
 
-  /** Default export is the KwesPayWidget class (backward compatibility) */
   export default KwesPayWidget;
 }

@@ -37,3 +37,6 @@ coverage/
 # Misc
 .cache/
 indexr.html
+# Local test harness
+test.html
+test.local.json
