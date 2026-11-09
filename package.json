@@ -1,7 +1,7 @@
 {
   "name": "@kwespay/widget",
   "type": "module",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "KwesPay checkout widget: accept crypto priced in fiat on EVM networks, Sui, Stellar and NEAR",
   "main": "dist/kwespay-widget.min.js",
   "module": "dist/esm/index.js",

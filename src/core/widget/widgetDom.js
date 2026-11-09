@@ -15,17 +15,15 @@ export const DomMethods = {
   },
 
   _injectFonts() {
-    if (
-      !document.querySelector(
-        'link[href*="fonts.googleapis.com/css2?family=Syne"]'
-      )
-    ) {
-      const link = document.createElement("link");
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap";
-      link.rel = "stylesheet";
-      document.head.appendChild(link);
-    }
+    if (document.getElementById("kwespay-widget-fonts")) return;
+    const style = document.createElement("style");
+    style.id = "kwespay-widget-fonts";
+    document.head.appendChild(style);
+    import("../../ui/interFont.js")
+      .then(({ INTER_FONT_FACE }) => {
+        style.textContent = INTER_FONT_FACE;
+      })
+      .catch(() => {});
   },
 
   _injectStyles() {

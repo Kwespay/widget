@@ -1,6 +1,4 @@
 export const WIDGET_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
@@ -16,8 +14,8 @@ export const WIDGET_STYLES = `
     --kp-red:          #f43f5e;
     --kp-text:         #f1f0ff;
     --kp-muted:        #6b6a80;
-    --kp-mono:         'Inter', monospace;
-    --kp-sans:         'Inter', sans-serif;
+    --kp-mono:         'KwesPay Inter', ui-monospace, Menlo, monospace;
+    --kp-sans:         'KwesPay Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
 
   body.kwespay-open {

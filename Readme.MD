@@ -9,7 +9,7 @@ Full documentation: [docs.kwespay.xyz/guides/checkout-widget](https://docs.kwesp
 ```html
 <script
   type="module"
-  src="https://cdn.jsdelivr.net/npm/@kwespay/widget@1.2.1/dist/browser/kwespay-widget.js"
+  src="https://cdn.jsdelivr.net/npm/@kwespay/widget@1.2.2/dist/browser/kwespay-widget.js"
   data-kwespay-key="YOUR_API_KEY"
 ></script>
 
