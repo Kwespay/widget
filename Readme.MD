@@ -1,6 +1,6 @@
 # @kwespay/widget
 
-Checkout modal for accepting crypto priced in fiat. EVM networks, Sui, Stellar and NEAR, plus payment from other chains powered by NEAR Intents.
+Checkout modal for accepting crypto priced in fiat on **NEAR**, EVM networks and Sui. Customers can also pay with any token [NEAR Intents](https://near-intents.org) supports.
 
 Full documentation: [docs.kwespay.xyz/guides/checkout-widget](https://docs.kwespay.xyz/guides/checkout-widget/)
 
@@ -9,7 +9,7 @@ Full documentation: [docs.kwespay.xyz/guides/checkout-widget](https://docs.kwesp
 ```html
 <script
   type="module"
-  src="https://cdn.jsdelivr.net/npm/@kwespay/widget@1.2.0/dist/browser/kwespay-widget.js"
+  src="https://cdn.jsdelivr.net/npm/@kwespay/widget@1.2.1/dist/browser/kwespay-widget.js"
   data-kwespay-key="YOUR_API_KEY"
 ></script>
 
@@ -65,18 +65,20 @@ if (check.paid) await markOrderPaid("A-1042");
 
 Networks, contracts and tokens are loaded from the KwesPay API for the chosen environment and filtered to what the merchant accepts. Nothing is hardcoded in the widget.
 
-On NEAR the customer picks Meteor, Intear or Sender. The widget loads `@near-wallet-selector` from jsDelivr only when the customer chooses a NEAR network, so pages that never use NEAR download nothing extra.
+## NEAR
 
-## Pay from any chain (powered by NEAR Intents)
+On NEAR the customer picks Meteor, Intear or Sender. The widget loads `@near-wallet-selector` from jsDelivr only when the customer chooses a NEAR network, so pages that never use NEAR download nothing extra. The widget also accepts your own connected wallet through the `nearWallet` option.
 
-When a merchant turns on payments from other assets, the network list shows **Pay with XLM or BTC** next to the usual networks. No extra code or configuration is needed in your page.
+## Pay with any token (powered by NEAR Intents)
 
-1. The customer picks XLM or BTC and sees the live price.
+When a merchant turns on payments from other chains, the widget offers **Pay with what you have** alongside the usual networks. No extra code is needed.
+
+1. The customer searches for any token [NEAR Intents](https://near-intents.org) supports and sees the live price.
 2. They enter their own address for refunds.
-3. The widget shows the amount, deposit address, memo and a QR code. The customer sends from any wallet or exchange; nothing connects to your site.
-4. [NEAR Intents](https://near-intents.org) converts the payment and delivers USDC to the merchant on Base. KwesPay verifies the delivery on-chain, then the widget shows the receipt.
+3. The widget shows the amount, deposit address and QR code. The customer sends from any wallet or exchange.
+4. NEAR Intents converts the payment and delivers the asset the merchant accepts. KwesPay verifies the delivery on-chain, then the widget shows the receipt.
 
-The result is the same as any other payment, with `network: "base"`, `token: "USDC"` and a `paidWith` field (`{ asset, amount, transactions }`). `transactionHash` is the Base delivery. Confirm it on your server with `verifyPayment()` as usual. The `crossChainDepositReady` event fires when the deposit details are shown.
+In the result, `network` and `token` are what the merchant received, `paidWith` (`{ asset, chain, amount, transactions }`) is what the customer sent, and `transactionHash` is the delivery to the merchant. Confirm it on your server with `verifyPayment()` as usual. The `crossChainDepositReady` event fires when the deposit details are shown.
 
 ## Result
 
